@@ -72,15 +72,17 @@ SESSION_ID="run-$(date +%s)"
 .visualizer/emit-event.sh sessionEnd '{}' "$SESSION_ID"
 ```
 
-Start the visualizer and observe live activity:
+**Start the ingest service and web UI first**, then run the emit commands:
 
 ```bash
-# terminal 1 (from visualizer repo)
-npx tsx -e 'import { createIngestServer } from "./packages/ingest-service/src/index.ts"; (async () => { const server = await createIngestServer(); await server.listen({ host: "127.0.0.1", port: 7070 }); console.log("INGEST_READY http://127.0.0.1:7070"); })();'
+# terminal 1 (from visualizer repo) — start ingest service on port 7070
+npm run serve:ingest
 
-# terminal 2 (from visualizer repo)
+# terminal 2 (from visualizer repo) — start web UI
 npm run dev --workspace=packages/web-ui
 ```
+
+> **Offline / JSONL-only mode**: If the ingest service is not running, `emit-event.sh` still writes all events to `.visualizer/logs/events.jsonl` and exits cleanly. No events are lost. Start the ingest service later and replay from the JSONL file.
 
 Open:
 - `http://127.0.0.1:5173`

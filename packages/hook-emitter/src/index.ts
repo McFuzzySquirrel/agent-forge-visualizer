@@ -31,11 +31,16 @@ async function ensureParent(path: string): Promise<void> {
 }
 
 async function sendHttp(event: EventEnvelope, endpoint: string): Promise<void> {
-  await fetch(endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(event)
-  });
+  try {
+    await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(event)
+    });
+  } catch {
+    // HTTP delivery is best-effort. The event is already written to JSONL.
+    // Suppress connection errors so the emitter never crashes hook scripts.
+  }
 }
 
 export async function emitEvent(

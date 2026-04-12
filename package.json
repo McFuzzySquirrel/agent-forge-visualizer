@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke:e2e": "tsx scripts/smoke-e2e.ts",
+    "serve:ingest": "tsx -e \"import { createIngestServer } from './packages/ingest-service/src/index.ts'; const s = await createIngestServer(); await s.listen({ host: '127.0.0.1', port: 7070 }); console.log('INGEST_READY http://127.0.0.1:7070');\"",
     "emit:event": "tsx scripts/emit-event-cli.ts",
     "bootstrap:repo": "tsx scripts/bootstrap-existing-repo.ts",
     "lint": "echo 'Lint config baseline in place'",

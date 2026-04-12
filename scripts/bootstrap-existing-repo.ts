@@ -118,9 +118,17 @@ postToolUseFailure, subagentStart, subagentStop, agentStop, notification,
 errorOccurred
 
 ## Live Viewing
-1. Run visualizer ingest service on 127.0.0.1:7070.
-2. Run visualizer web UI dev server.
-3. Run your multi-agent workflow with these hook emits enabled.
+1. Start the ingest service from the visualizer repo:
+   npm run serve:ingest   (from ${visualizerRoot})
+2. Start the web UI from the visualizer repo:
+   npm run dev --workspace=packages/web-ui
+3. Run your multi-agent workflow with hook emits enabled.
+4. Open http://127.0.0.1:5173 to observe live activity.
+
+## Offline / JSONL-Only Mode
+If the ingest service is NOT running, emit-event.sh still writes all events to
+.visualizer/logs/events.jsonl and exits cleanly — no lost events.
+Start the ingest service later and replay from the JSONL file.
 `;
 
   await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
