@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { mkdir, access, writeFile } from "node:fs/promises";
+import { mkdir, access, writeFile, readFile, readdir, chmod } from "node:fs/promises";
 import { constants } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, basename } from "node:path";
 
 function fail(message: string): never {
   console.error(`bootstrap-existing-repo error: ${message}`);
@@ -135,11 +135,144 @@ Start the ingest service later and replay from the JSONL file.
   await writeFile(emitScriptPath, emitScript, "utf8");
   await writeFile(guidePath, guide, "utf8");
 
-  console.log(`Bootstrapped visualizer integration in: ${vizDir}`);
-  console.log("Next steps:");
-  console.log("1) chmod +x .visualizer/emit-event.sh");
-  console.log("2) wire your agent lifecycle hooks to call .visualizer/emit-event.sh");
-  console.log("3) run visualizer ingest + web UI and execute your workflow");
+  // chmod +x the emit script automatically
+  await chmod(emitScriptPath, 0o755);
+  console.log(`\nBootstrapped visualizer integration in: ${vizDir}`);
+
+  // Auto-detect and wire hooks in .github/hooks/
+  await wireHooks(targetRepo);
+}
+
+/**
+ * Maps hook script filenames to their visualizer event type and a
+ * function that builds the JSON payload from parsed input.
+ *
+ * Because every repo may differ, we match on the base filename (case-insensitive)
+ * and append a best-effort emit block. The block is idempotent — skipped if
+ * ".visualizer/emit-event.sh" already appears in the file.
+ */
+const HOOK_MAP: Record<string, { eventType: string; payloadSnippet: string; sessionSnippet: string }> = {
+  "session-start.sh": {
+    eventType: "sessionStart",
+    payloadSnippet: `$(jq -nc --arg source "\${SOURCE:-unknown}" '{"source":$source}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "sessionstart.sh": {
+    eventType: "sessionStart",
+    payloadSnippet: `$(jq -nc --arg source "\${SOURCE:-unknown}" '{"source":$source}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "session-end.sh": {
+    eventType: "sessionEnd",
+    payloadSnippet: `$(jq -nc --arg reason "\${REASON:-unknown}" '{"reason":$reason}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "sessionend.sh": {
+    eventType: "sessionEnd",
+    payloadSnippet: `$(jq -nc --arg reason "\${REASON:-unknown}" '{"reason":$reason}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "subagent-stop.sh": {
+    eventType: "subagentStop",
+    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" --arg task "\${TASK_DESC:-}" '{"agentName":$agent,"taskDescription":$task}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "subagent-start.sh": {
+    eventType: "subagentStart",
+    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" '{"agentName":$agent}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "log-prompt.sh": {
+    eventType: "userPromptSubmitted",
+    payloadSnippet: `$(jq -nc --arg prompt "\${PROMPT:-}" '{"prompt":$prompt}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "pre-tool-use.sh": {
+    eventType: "preToolUse",
+    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "post-tool-use.sh": {
+    eventType: "postToolUse",
+    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg status "\${STATUS:-unknown}" '{"toolName":$tool,"status":$status}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+};
+
+function buildEmitBlock(emitScriptRelPath: string, eventType: string, payloadSnippet: string, sessionSnippet: string): string {
+  return [
+    ``,
+    `# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---`,
+    `if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then`,
+    `  _VIZ_PAYLOAD=${payloadSnippet}`,
+    `  "\${REPO_ROOT}/${emitScriptRelPath}" ${eventType} "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true`,
+    `fi`,
+  ].join("\n");
+}
+
+async function wireHooks(targetRepo: string): Promise<void> {
+  const hooksDir = join(targetRepo, ".github", "hooks");
+
+  let hookFiles: string[];
+  try {
+    hookFiles = await readdir(hooksDir);
+  } catch {
+    console.log("\nNo .github/hooks/ directory found — skipping hook wiring.");
+    console.log("To wire manually, see .visualizer/HOOK_INTEGRATION.md");
+    return;
+  }
+
+  const shFiles = hookFiles.filter((f) => f.endsWith(".sh"));
+  if (shFiles.length === 0) {
+    console.log("\nNo .sh files found in .github/hooks/ — skipping hook wiring.");
+    return;
+  }
+
+  console.log(`\nAuto-wiring hooks in ${hooksDir}:`);
+  let wired = 0;
+  let skipped = 0;
+
+  for (const filename of shFiles) {
+    const key = filename.toLowerCase();
+    const mapping = HOOK_MAP[key];
+    if (!mapping) {
+      console.log(`  SKIP  ${filename} — no event type mapping (add manually if needed)`);
+      skipped += 1;
+      continue;
+    }
+
+    const hookPath = join(hooksDir, filename);
+    const content = await readFile(hookPath, "utf8");
+
+    if (content.includes(".visualizer/emit-event.sh")) {
+      console.log(`  OK    ${filename} — already wired`);
+      skipped += 1;
+      continue;
+    }
+
+    const emitBlock = buildEmitBlock(
+      ".visualizer/emit-event.sh",
+      mapping.eventType,
+      mapping.payloadSnippet,
+      mapping.sessionSnippet
+    );
+
+    // Insert before the final `exit 0` if present, otherwise append
+    const exitPattern = /^exit 0\s*$/m;
+    const updated = exitPattern.test(content)
+      ? content.replace(exitPattern, `${emitBlock}\n\nexit 0`)
+      : content + emitBlock + "\n";
+
+    await writeFile(hookPath, updated, "utf8");
+    console.log(`  WIRED ${filename} → ${mapping.eventType}`);
+    wired += 1;
+  }
+
+  console.log(`\nHook wiring complete: ${wired} wired, ${skipped} skipped.`);
+  console.log("\nNext steps:");
+  console.log("  1) Start the ingest service:   npm run serve:ingest  (from visualizer repo)");
+  console.log("  2) Start the web UI:            npm run dev --workspace=packages/web-ui");
+  console.log("  3) Run your agent workflow — events appear live at http://127.0.0.1:5173");
 }
 
 void main();
