@@ -41,6 +41,50 @@ This command will:
 4. Verify `/state/stream` returns a completed session state snapshot.
 5. Clean up temporary files and stop the service.
 
+## Integrate An Existing Repo (Bootstrap)
+
+Yes, a bootstrap step is recommended for adoption.
+
+From the visualizer repo, scaffold integration files into any existing target repo:
+
+```bash
+npm run bootstrap:repo -- /absolute/path/to/target-repo
+```
+
+This creates in the target repo:
+- `.visualizer/emit-event.sh`
+- `.visualizer/visualizer.config.json`
+- `.visualizer/HOOK_INTEGRATION.md`
+
+Then in the target repo:
+
+```bash
+chmod +x .visualizer/emit-event.sh
+```
+
+Wire your agent lifecycle hooks to call the generated script:
+
+```bash
+SESSION_ID="run-$(date +%s)"
+.visualizer/emit-event.sh sessionStart '{}' "$SESSION_ID"
+.visualizer/emit-event.sh preToolUse '{"toolName":"bash","toolArgs":{"command":"npm test"}}' "$SESSION_ID"
+.visualizer/emit-event.sh postToolUse '{"toolName":"bash","status":"success","durationMs":800}' "$SESSION_ID"
+.visualizer/emit-event.sh sessionEnd '{}' "$SESSION_ID"
+```
+
+Start the visualizer and observe live activity:
+
+```bash
+# terminal 1 (from visualizer repo)
+npx tsx -e 'import { createIngestServer } from "./packages/ingest-service/src/index.ts"; (async () => { const server = await createIngestServer(); await server.listen({ host: "127.0.0.1", port: 7070 }); console.log("INGEST_READY http://127.0.0.1:7070"); })();'
+
+# terminal 2 (from visualizer repo)
+npm run dev --workspace=packages/web-ui
+```
+
+Open:
+- `http://127.0.0.1:5173`
+
 ## Hook Configuration
 
 Generate the expected hook event configuration:
