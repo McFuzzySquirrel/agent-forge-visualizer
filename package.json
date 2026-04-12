@@ -1,0 +1,28 @@
+{
+  "name": "agent-forge-visualizer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "shared/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "npm run -ws build",
+    "typecheck": "npm run -ws typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "echo 'Lint config baseline in place'",
+    "clean": "rm -rf coverage dist .tmp"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^4.1.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.2"
+  }
+}

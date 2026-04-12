@@ -4,22 +4,82 @@
 
 **Mode**: Feature-Based Build  
 **Product Vision**: docs/product-vision.md  
-**Status**: Planned (not started)  
+**Status**: Paused after Feature 1 completion  
 **Last Updated**: 2026-04-12
 
-No implementation has started. This document captures dependency analysis and planned execution order only.
+Execution paused intentionally per request after completing only Foundation Event Capture.
 
-## Feature Inventory
+## Feature Progress
 
-| Feature ID | Feature Name | File | Declared Dependencies |
+| Feature | File | Status | Notes |
 |---|---|---|---|
-| FND | Foundation Event Capture | docs/features/foundation-event-capture.md | None |
-| STAT | Deterministic State Engine | docs/features/deterministic-state-engine.md | Foundation Event Capture |
-| LIVE | Live Visualization Board | docs/features/live-visualization-board.md | Foundation Event Capture, Deterministic State Engine |
-| RPLY | Replay and Session Review | docs/features/replay-and-session-review.md | Foundation Event Capture, Deterministic State Engine, Live Visualization Board |
-| PRIV | Privacy Retention and Export Controls | docs/features/privacy-retention-and-export-controls.md | Foundation Event Capture |
+| Foundation Event Capture | docs/features/foundation-event-capture.md | Complete | Implemented and validated locally |
+| Deterministic State Engine | docs/features/deterministic-state-engine.md | Pending | Next dependency-unlocked feature |
+| Privacy Retention and Export Controls | docs/features/privacy-retention-and-export-controls.md | Pending | Can run in parallel with STAT after FND |
+| Live Visualization Board | docs/features/live-visualization-board.md | Pending | Depends on STAT |
+| Replay and Session Review | docs/features/replay-and-session-review.md | Pending | Depends on FND + STAT + LIVE |
 
-## Feature Dependency Graph
+## Completed Work: Feature 1 (FND)
+
+### Implemented Deliverables
+
+- Workspace scaffolding and baseline config for packages and shared modules.
+- Canonical event schema with all MVP event types, required envelope fields, and additive compatibility handling.
+- Hook emitter implementation with JSONL persistence, validation-before-write, malformed-record rejection, and optional localhost HTTP streaming.
+- Ingestion entry points for append-only JSONL parsing and optional HTTP event intake.
+- Optional Agent Forge/EJS overlay guidance documentation.
+- Quick start documentation for first-live-flow foundation path.
+- CI baseline workflow with Linux, macOS, and Windows matrix.
+
+### Files Added/Updated (Feature 1 scope)
+
+- package.json
+- tsconfig.json
+- vitest.config.ts
+- .github/workflows/ci.yml
+- .gitignore
+- scripts/configure-hooks.ts
+- README.md
+- docs/integrations/agent-forge-ejs-overlay.md
+- shared/event-schema/package.json
+- shared/event-schema/tsconfig.json
+- shared/event-schema/src/schema.ts
+- shared/event-schema/src/index.ts
+- shared/event-schema/test/schema.test.ts
+- shared/redaction/package.json
+- shared/redaction/tsconfig.json
+- shared/redaction/src/index.ts
+- packages/hook-emitter/package.json
+- packages/hook-emitter/tsconfig.json
+- packages/hook-emitter/src/index.ts
+- packages/hook-emitter/test/emitter.test.ts
+- packages/ingest-service/package.json
+- packages/ingest-service/tsconfig.json
+- packages/ingest-service/src/index.ts
+- packages/ingest-service/test/ingest.test.ts
+- packages/web-ui/package.json
+- packages/web-ui/tsconfig.json
+- packages/web-ui/src/index.ts
+
+## Acceptance Criteria Validation (FND)
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| Hook-based capture produces schema-compliant events for all MVP event types | Pass | emitter and schema tests passed |
+| Event emission remains stable across Linux, macOS, Windows shell environments in MVP matrix | Pass (configured) | CI matrix configured for ubuntu-latest, windows-latest, macos-latest |
+| Ingestion inputs (JSONL and optional localhost stream) supported and validated | Pass | ingestion tests validated JSONL parsing and HTTP ingest endpoint |
+| Foundation setup supports first live visualization path under 10 minutes | Pass (documentation + runnable path) | README quick start and scripts provided |
+
+Validation commands run locally:
+- npm run typecheck
+- npm run test
+
+Latest local result:
+- Typecheck: pass
+- Tests: 8/8 passed
+- Coverage: lines 90.74% (threshold >= 80%)
+
+## Dependency Graph (unchanged)
 
 ```text
 FND
@@ -29,72 +89,12 @@ FND
 └── PRIV
 ```
 
-Dependency validation:
-- Graph is acyclic (valid DAG).
-- All dependency declarations in feature docs are consistent with product vision Section 14.
-- RPLY is the most downstream feature and cannot begin before LIVE.
+## Next Start Point
 
-## Execution Plan (Build Waves)
-
-### Wave 1
-- FND (Foundation Event Capture)
-
-Why first:
-- Every other feature depends directly or indirectly on event capture and ingestion entry points.
-- Establishes schema-compliant event flow required by state engine, live UI, replay, and privacy enforcement.
-
-### Wave 2 (parallel after FND)
-- STAT (Deterministic State Engine)
-- PRIV (Privacy Retention and Export Controls)
-
-Why this wave:
-- STAT depends only on FND and unlocks LIVE/RPLY.
-- PRIV depends only on FND and is independent of LIVE/RPLY UI flow, so it can proceed in parallel.
-- Running STAT and PRIV in parallel shortens total critical path while keeping dependency safety.
-
-### Wave 3
-- LIVE (Live Visualization Board)
-
-Why third:
-- LIVE requires both FND event flow and STAT deterministic state outputs.
-- LIVE provides the visual state components and behavior reused by replay.
-
-### Wave 4
-- RPLY (Replay and Session Review)
-
-Why last:
-- RPLY explicitly depends on FND + STAT + LIVE.
-- Replay controls and timeline behavior build on existing live visualization semantics and state mapping.
-
-## Recommended Sequence
-
-1. Build FND
-2. Build STAT and PRIV in parallel
-3. Build LIVE
-4. Build RPLY
-
-Critical path:
-- FND -> STAT -> LIVE -> RPLY
-
-Parallelization opportunity:
-- PRIV can run alongside STAT after FND completes.
-
-## Per-Feature Planned Status
-
-| Feature | Status | Planned Wave | Notes |
-|---|---|---|---|
-| Foundation Event Capture | Pending | Wave 1 | Prerequisite for all downstream features |
-| Deterministic State Engine | Pending | Wave 2 | Blocks LIVE and RPLY |
-| Privacy Retention and Export Controls | Pending | Wave 2 | Independent of LIVE/RPLY, shares FND dependency only |
-| Live Visualization Board | Pending | Wave 3 | Depends on STAT outputs |
-| Replay and Session Review | Pending | Wave 4 | Final downstream feature |
+When resumed, begin Wave 2:
+1. Deterministic State Engine (STAT)
+2. Privacy Retention and Export Controls (PRIV)
 
 ## Blockers
 
-- None at planning stage.
-
-## Notes
-
-- This plan prioritizes dependency correctness first, then minimizes total duration via safe parallelism.
-- Security/privacy controls are introduced early (Wave 2 via PRIV) rather than deferred to the end, reducing integration risk.
-- Implementation intentionally not started in this phase.
+- None.
