@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { PassThrough } from "node:stream";
 import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
 import { parseEvent, type EventEnvelope } from "../../../shared/event-schema/src/index.js";
 import { rebuildState, reduceEvent, initialSessionState, type SessionState } from "../../../shared/state-machine/src/index.js";
 
@@ -32,6 +33,7 @@ export async function rebuildStateFromFile(filePath: string): Promise<SessionSta
 
 export async function createIngestServer(): Promise<FastifyInstance> {
   const server = Fastify({ logger: false });
+  await server.register(cors, { origin: true });
   const acceptedEvents: EventEnvelope[] = [];
   let currentState: SessionState = initialSessionState("unknown");
 
