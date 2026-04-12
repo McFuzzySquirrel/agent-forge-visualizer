@@ -13,6 +13,11 @@ export interface EmitOptions {
   httpEndpoint?: string;
   now?: () => string;
   eventIdFactory?: () => string;
+  /**
+   * When true, prompt bodies are stored as "[REDACTED_PROMPT]" instead of
+   * being removed entirely. Defaults to false (PRIV-FR-05 safe default).
+   */
+  storePrompts?: boolean;
 }
 
 export interface EmitResult {
@@ -54,7 +59,7 @@ export async function emitEvent(
     return { accepted: false, error: parsed.error };
   }
 
-  const redacted = applyRedaction(parsed.value);
+  const redacted = applyRedaction(parsed.value, { storePrompts: options.storePrompts });
   await ensureParent(options.jsonlPath);
   await appendFile(options.jsonlPath, `${JSON.stringify(redacted)}\n`, "utf8");
 
