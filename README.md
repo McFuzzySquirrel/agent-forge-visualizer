@@ -2,12 +2,12 @@
 
 Feature status:
 - Foundation Event Capture: implemented
-- Deterministic State Engine: planned
-- Live Visualization Board: planned
-- Replay and Session Review: planned
-- Privacy Retention and Export Controls: planned
+- Deterministic State Engine: implemented
+- Live Visualization Board: implemented
+- Replay and Session Review: implemented
+- Privacy Retention and Export Controls: implemented
 
-## Quick Start (Foundation Feature)
+## Quick Start
 
 Prerequisites:
 - Node.js 24+
@@ -26,6 +26,21 @@ The foundation tests validate:
 - JSONL ingestion and optional localhost HTTP stream ingestion
 - Optional EJS overlay compatibility
 
+## Runtime Smoke Test
+
+Run a real end-to-end local flow (emitter -> ingest service -> state stream):
+
+```bash
+npm run smoke:e2e
+```
+
+This command will:
+1. Start the ingest service on localhost.
+2. Emit a short session lifecycle via the hook emitter.
+3. Verify `/events` contains the expected event sequence.
+4. Verify `/state/stream` returns a completed session state snapshot.
+5. Clean up temporary files and stop the service.
+
 ## Hook Configuration
 
 Generate the expected hook event configuration:
@@ -36,9 +51,9 @@ npx tsx scripts/configure-hooks.ts
 
 This prints the lifecycle event set the emitter supports.
 
-## First Live Flow (Foundation)
+## First Live Flow
 
-This feature does not include the visual UI yet. The live flow for Foundation is:
+The live flow is:
 
 1. Emit schema-compliant events to JSONL using `@visualizer/hook-emitter`.
 2. Validate and parse events via `@visualizer/event-schema`.

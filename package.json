@@ -15,6 +15,7 @@
     "typecheck": "npm run -ws typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke:e2e": "tsx scripts/smoke-e2e.ts",
     "lint": "echo 'Lint config baseline in place'",
     "clean": "rm -rf coverage dist .tmp"
   },
