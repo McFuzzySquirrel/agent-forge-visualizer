@@ -55,21 +55,14 @@ This creates in the target repo:
 - `.visualizer/emit-event.sh`
 - `.visualizer/visualizer.config.json`
 - `.visualizer/HOOK_INTEGRATION.md`
+- auto-wired known lifecycle hooks in `.github/hooks/*.sh` (when present)
 
-Then in the target repo:
+No manual `chmod` or manual hook wiring is required for standard setups.
 
-```bash
-chmod +x .visualizer/emit-event.sh
-```
-
-Wire your agent lifecycle hooks to call the generated script:
+If your repo uses non-standard hook filenames, wire them manually to call:
 
 ```bash
-SESSION_ID="run-$(date +%s)"
-.visualizer/emit-event.sh sessionStart '{}' "$SESSION_ID"
-.visualizer/emit-event.sh preToolUse '{"toolName":"bash","toolArgs":{"command":"npm test"}}' "$SESSION_ID"
-.visualizer/emit-event.sh postToolUse '{"toolName":"bash","status":"success","durationMs":800}' "$SESSION_ID"
-.visualizer/emit-event.sh sessionEnd '{}' "$SESSION_ID"
+.visualizer/emit-event.sh <eventType> '<payload-json>' <sessionId>
 ```
 
 **Start the ingest service and web UI first**, then run the emit commands:
