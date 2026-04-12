@@ -79,7 +79,7 @@ Key test scenarios:
 
 ## 7. Acceptance Criteria
 
-1. Replay controls are functional and stable on supported platforms.
+1. Replay controls are functional and stable on Linux, macOS, and Windows.
 2. Replay ordering always matches stored chronology.
 3. First-failure jump and inspector workflows are efficient and predictable.
 

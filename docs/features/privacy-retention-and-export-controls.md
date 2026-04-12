@@ -9,6 +9,7 @@
 | PRIV-FR-02 | FR-PR-02 | Enforce retention modes with 7-day default |
 | PRIV-FR-03 | FR-PR-03 | Support purge operation for local logs |
 | PRIV-FR-04 | FR-PR-04 | Keep export disabled by default and require explicit configuration |
+| PRIV-FR-05 | SP-08 | Prompt content storage opt-in enforcement |
 
 **Product Vision:** [docs/product-vision.md](../product-vision.md)  
 **Original PRD:** [docs/prd.md](../prd.md)
@@ -41,6 +42,7 @@
 | PRIV-FR-02 | Default retention must be 7 days with configurable 1 day, 30 days, and manual modes. | Must |
 | PRIV-FR-03 | A purge command must delete all local event logs for targeted scope. | Must |
 | PRIV-FR-04 | Export must be disabled by default and require explicit destination configuration. | Must |
+| PRIV-FR-05 | Prompt content storage must be opt-in only; default behavior must not persist prompt bodies (including redacted bodies) unless explicitly enabled. | Must |
 
 ---
 
@@ -84,6 +86,8 @@ Key test scenarios:
 2. Retention policy defaults and overrides function as documented.
 3. Purge operation reliably removes targeted local logs.
 4. Export remains disabled by default and requires explicit activation and destination configuration.
+5. Prompt content is not persisted by default; opt-in configuration is required to enable storage.
+6. Redaction, retention, and purge operations function correctly on Linux, macOS, and Windows.
 
 ---
 

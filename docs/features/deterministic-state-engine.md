@@ -79,6 +79,7 @@ Key test scenarios:
 1. State outputs are deterministic for equivalent inputs.
 2. Transition mapping aligns with lifecycle rules in product vision.
 3. Recovery mode restores session state without manual intervention.
+4. State recovery and transitions behave consistently on Linux, macOS, and Windows.
 
 ---
 

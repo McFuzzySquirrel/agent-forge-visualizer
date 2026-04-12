@@ -272,5 +272,4 @@ Feature 1: Foundation Event Capture
 | 3 | What exact retention configuration surface is preferred (CLI flags, config file, or UI settings)? | Config file + CLI override |
 | 4 | Is any formal regulatory target required at launch (GDPR/CCPA attestation artifacts)? | Best-practice baseline controls only, formal mapping deferred |
 | 5 | If prompt storage is enabled, what is the default truncation/max length policy? | Default max 512 characters with configurable override |
-| 6 | Is Fastify preferred for ingest service, or should ingest remain framework-minimal HTTP server? | Resolved: Fastify 5.x is locked for MVP |
-| 7 | What minimum test coverage threshold is required for merge gates? | 80% line coverage on core packages |
+| 6 | What minimum test coverage threshold is required for merge gates? | 80% line coverage on core packages |

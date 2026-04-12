@@ -89,6 +89,7 @@ Key test scenarios:
 1. Live board reflects real-time activity with event-to-render latency under 1 second.
 2. Visual status semantics are consistent with defined lifecycle mapping.
 3. Event inspector and filters operate reliably during active sessions.
+4. Live board renders and updates correctly on Linux, macOS, and Windows.
 
 ---
 
