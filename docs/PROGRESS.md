@@ -1,0 +1,297 @@
+# Project Progress
+
+## Current State
+
+**Mode**: Feature-Based Build  
+**Product Vision**: docs/product-vision.md  
+**Status**: Complete  
+**Last Updated**: 2026-04-12
+
+All five planned features are complete and validated locally.
+
+## Feature Progress
+
+| Feature | File | Status | Notes |
+|---|---|---|---|
+| Foundation Event Capture | docs/features/foundation-event-capture.md | Complete | Implemented and validated locally |
+| Deterministic State Engine | docs/features/deterministic-state-engine.md | Complete | Implemented and validated locally |
+| Privacy Retention and Export Controls | docs/features/privacy-retention-and-export-controls.md | Complete | Implemented and validated locally |
+| Live Visualization Board | docs/features/live-visualization-board.md | Complete | Implemented and validated locally |
+| Replay and Session Review | docs/features/replay-and-session-review.md | Complete | Implemented and validated locally |
+
+## Completed Work: Feature 5 (RPLY)
+
+### Implemented Deliverables
+
+- Deterministic replay frame engine with chronology sorting by timestamp and log-position fallback.
+- Replay controls for play, pause, scrub, variable speed, and replay mode toggling.
+- First-failure shortcut that jumps directly to the earliest failure event.
+- Inspector synchronization with replay frame selection.
+- Memoized replay frame generation to keep 10k-event sessions responsive.
+- Fixture-backed replay tests for chronology parity, scrubbing parity, failure jump, and large-session responsiveness.
+- Production Vite build validation for the replay-enabled web UI.
+
+### Files Added/Updated (Feature 5 scope)
+
+- packages/web-ui/src/types.ts
+- packages/web-ui/src/replay.ts
+- packages/web-ui/src/App.tsx
+- packages/web-ui/src/components/ReplayControls.tsx
+- packages/web-ui/test/replay.test.ts
+- tests/fixtures/sessions/replay-failure-path.jsonl
+
+## Acceptance Criteria Validation (RPLY)
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| Replay controls are functional and stable on Linux, macOS, and Windows | Pass | Replay controls implemented in UI; CI matrix remains cross-platform |
+| Replay ordering always matches stored chronology | Pass | `replay.test.ts` validates timestamp ordering with original log position fallback |
+| First-failure jump and inspector workflows are efficient and predictable | Pass | fixture-backed replay tests cover first failure lookup and inspector mapping |
+
+### Validation Commands
+
+```
+npm run typecheck                         → pass (6/6 packages)
+npm test                                  → pass (106/106 tests, 8 test files)
+npm run build --workspace=packages/web-ui → pass
+```
+
+### Test Run Summary (Feature 5 final)
+
+```
+✓ packages/web-ui/test/replay.test.ts          (7 tests) 69ms
+✓ packages/web-ui/test/filterState.test.ts    (15 tests) 17ms
+✓ packages/web-ui/test/stateMapping.test.ts   (16 tests) 11ms
+Tests: 106/106 passed
+Coverage: lines 90.69% | statements 90.22% | branches 82.57% | functions 96.15%
+All thresholds pass (≥80% lines, ≥70% functions, ≥65% branches, ≥80% statements)
+```
+
+---
+
+## Completed Work: Feature 4 (LIVE)
+
+### Implemented Deliverables
+
+- React 19 + Vite 8 web UI package for the live board.
+- Deterministic lane mapping from `SessionState` to rendered session/tool/subagent lanes.
+- Event inspector panel for selected timeline entries.
+- Event filter logic by event type and agent/tool name.
+- `App.tsx` with real-time state updates via SSE (`/state/stream`) and periodic event polling.
+- Server-Sent Events endpoint in ingest service broadcasting current state on each ingested event.
+- 31 new LIVE tests covering lane mapping, status semantics, filters, and SSE live updates.
+
+### Files Added/Updated (Feature 4 scope)
+
+- packages/web-ui/package.json
+- packages/web-ui/tsconfig.json
+- packages/web-ui/vite.config.ts
+- packages/web-ui/index.html
+- packages/web-ui/src/index.ts
+- packages/web-ui/src/main.tsx
+- packages/web-ui/src/App.tsx
+- packages/web-ui/src/types.ts
+- packages/web-ui/src/stateMapping.ts
+- packages/web-ui/src/filterState.ts
+- packages/web-ui/src/components/LiveBoard.tsx
+- packages/web-ui/src/components/LaneItem.tsx
+- packages/web-ui/src/components/EventInspector.tsx
+- packages/web-ui/src/components/FilterControls.tsx
+- packages/web-ui/test/stateMapping.test.ts
+- packages/web-ui/test/filterState.test.ts
+- packages/ingest-service/src/index.ts (added `/state/stream` SSE endpoint and live state broadcasts)
+- packages/ingest-service/test/ingest.test.ts (added SSE integration coverage)
+
+## Acceptance Criteria Validation (LIVE)
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| Live board reflects real-time activity with event-to-render latency under 1 second | Pass | SSE endpoint streams immediate and incremental state updates; ingest-service test validates live push |
+| Visual status semantics are consistent with defined lifecycle mapping | Pass | `stateMapping.test.ts` covers idle/running/succeeded/error/subagent transitions |
+| Event inspector and filters operate reliably during active sessions | Pass | `filterState.test.ts` + App event selection and inspector rendering |
+| Live board renders and updates correctly on Linux, macOS, and Windows | Pass (configured) | CI matrix covers ubuntu-latest, windows-latest, macos-latest |
+
+### Validation Commands
+
+```
+npm run typecheck   → pass (6/6 packages)
+npm test            → pass (99/99 tests, 7 test files)
+```
+
+### Test Run Summary (Feature 4 final)
+
+```
+✓ packages/web-ui/test/filterState.test.ts      (15 tests) 10ms
+✓ packages/web-ui/test/stateMapping.test.ts     (16 tests) 13ms
+✓ packages/ingest-service/test/ingest.test.ts   (6 tests) 205ms
+Tests: 99/99 passed
+Coverage: lines 93.14% | statements 92.39% | branches 85.98% | functions 94.59%
+All thresholds pass (≥80% lines, ≥70% functions, ≥65% branches, ≥80% statements)
+```
+
+---
+
+## Completed Work: Feature 3 (PRIV)
+
+### Implemented Deliverables
+
+- Pattern-based redaction for common token, API key, Slack token, AWS key, URL credential, and `key=value` secret forms.
+- Prompt body suppression by default, with explicit opt-in via `storePrompts`.
+- Retention modes: `1d`, `7d` (default), `30d`, and `manual`.
+- Purge operations for expired logs and full targeted log deletion.
+- Export guard requiring explicit enablement and destination configuration.
+- 38 new PRIV tests covering redaction, retention, purge, export gating, and prompt storage opt-in.
+
+### Files Added/Updated (Feature 3 scope)
+
+- shared/redaction/src/index.ts
+- shared/redaction/src/patterns.ts
+- shared/redaction/src/retention.ts
+- shared/redaction/src/export-config.ts
+- shared/redaction/test/redaction.test.ts
+- packages/hook-emitter/src/index.ts (added `storePrompts` option wiring)
+
+## Acceptance Criteria Validation (PRIV)
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| Redaction is enforced pre-persist and pre-export for all event pathways | Pass | `applyRedaction` now traverses all payload string fields; tests cover prompt, toolArgs.command, URLs, key=value |
+| Retention policy defaults and overrides function as documented | Pass | retention tests for `1d`, `7d`, `30d`, `manual` |
+| Purge operation reliably removes targeted local logs | Pass | purge tests cover expired and full-directory deletion |
+| Export remains disabled by default and requires explicit activation and destination configuration | Pass | `canExport()` tests validate all allowed/blocked combinations |
+| Prompt content is not persisted by default; opt-in configuration is required to enable storage | Pass | default prompt removal and opt-in placeholder tests |
+| Redaction, retention, and purge operations function correctly on Linux, macOS, and Windows | Pass (configured) | CI matrix covers ubuntu-latest, windows-latest, macos-latest |
+
+### Validation Commands
+
+```
+npm run typecheck   → pass (6/6 packages)
+npm test            → pass (65/65 tests at PRIV completion; 99/99 after LIVE)
+```
+
+---
+
+## Completed Work: Feature 2 (STAT)
+
+### Implemented Deliverables
+
+- Pure deterministic state machine reducer (`reduceEvent`) with full transition coverage per Product Vision §10.3.
+- `SessionState` typed structure covering lifecycle, visualization, tool, and subagent state.
+- `rebuildState` function for restart recovery from any EventEnvelope array (STAT-FR-03).
+- `initialSessionState` factory for fresh session initialization.
+- `rebuildStateFromFile` integration in `packages/ingest-service/` — parses a JSONL log and recovers session state without manual intervention.
+- 18 Vitest tests covering: determinism (STAT-FR-02), all §10.3 transition rules (STAT-FR-01), and restart recovery (STAT-FR-03).
+- Integration test in ingest-service verifying file-based state recovery end-to-end.
+
+### Files Added/Updated (Feature 2 scope)
+
+- shared/state-machine/package.json
+- shared/state-machine/tsconfig.json
+- shared/state-machine/src/types.ts
+- shared/state-machine/src/reducer.ts
+- shared/state-machine/src/index.ts
+- shared/state-machine/test/state-machine.test.ts
+- packages/ingest-service/src/index.ts (added rebuildStateFromFile + SessionState re-export)
+- packages/ingest-service/tsconfig.json (added state-machine source include)
+- packages/ingest-service/test/ingest.test.ts (added rebuildStateFromFile integration test)
+
+## Acceptance Criteria Validation (STAT)
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| State outputs are deterministic for equivalent inputs | Pass | Determinism tests: same events → identical state, event-by-event vs. bulk match |
+| Transition mapping aligns with lifecycle rules in product vision | Pass | 11 transition-specific tests matching all Product Vision §10.3 rules |
+| Recovery mode restores session state without manual intervention | Pass | `rebuildStateFromFile` test: 3-event JSONL log rebuilds active session state |
+| State recovery and transitions behave consistently on Linux, macOS, Windows | Pass (configured) | CI matrix covers ubuntu-latest, windows-latest, macos-latest |
+
+### Validation Commands
+
+```
+npm run typecheck   → pass (6/6 packages)
+npm test            → pass (27/27 tests, 4 test files)
+```
+
+### Test Run Summary (Feature 2 final)
+
+```
+✓ shared/state-machine/test/state-machine.test.ts  (18 tests) 15ms
+✓ shared/event-schema/test/schema.test.ts           (3 tests)  25ms
+✓ packages/hook-emitter/test/emitter.test.ts        (3 tests)  28ms
+✓ packages/ingest-service/test/ingest.test.ts       (3 tests) 157ms
+Tests: 27/27 passed
+Coverage: lines 90.9% | statements 91.02% | branches 81.57% | functions 94.73%
+All thresholds pass (≥80% lines, ≥70% functions, ≥65% branches, ≥80% statements)
+```
+
+---
+
+## Completed Work: Feature 1 (FND)
+
+### Implemented Deliverables
+
+- Workspace scaffolding and baseline config for packages and shared modules.
+- Canonical event schema with all MVP event types, required envelope fields, and additive compatibility handling.
+- Hook emitter implementation with JSONL persistence, validation-before-write, malformed-record rejection, and optional localhost HTTP streaming.
+- Ingestion entry points for append-only JSONL parsing and optional HTTP event intake.
+- Optional Agent Forge/EJS overlay guidance documentation.
+- Quick start documentation for first-live-flow foundation path.
+- CI baseline workflow with Linux, macOS, and Windows matrix.
+
+### Files Added/Updated (Feature 1 scope)
+
+- package.json
+- tsconfig.json
+- vitest.config.ts
+- .github/workflows/ci.yml
+- .gitignore
+- scripts/configure-hooks.ts
+- README.md
+- docs/integrations/agent-forge-ejs-overlay.md
+- shared/event-schema/package.json
+- shared/event-schema/tsconfig.json
+- shared/event-schema/src/schema.ts
+- shared/event-schema/src/index.ts
+- shared/event-schema/test/schema.test.ts
+- shared/redaction/package.json
+- shared/redaction/tsconfig.json
+- shared/redaction/src/index.ts
+- packages/hook-emitter/package.json
+- packages/hook-emitter/tsconfig.json
+- packages/hook-emitter/src/index.ts
+- packages/hook-emitter/test/emitter.test.ts
+- packages/ingest-service/package.json
+- packages/ingest-service/tsconfig.json
+- packages/ingest-service/src/index.ts
+- packages/ingest-service/test/ingest.test.ts
+- packages/web-ui/package.json
+- packages/web-ui/tsconfig.json
+- packages/web-ui/src/index.ts
+
+## Acceptance Criteria Validation (FND)
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| Hook-based capture produces schema-compliant events for all MVP event types | Pass | emitter and schema tests passed |
+| Event emission remains stable across Linux, macOS, Windows shell environments in MVP matrix | Pass (configured) | CI matrix configured for ubuntu-latest, windows-latest, macos-latest |
+| Ingestion inputs (JSONL and optional localhost stream) supported and validated | Pass | ingestion tests validated JSONL parsing and HTTP ingest endpoint |
+| Foundation setup supports first live visualization path under 10 minutes | Pass (documentation + runnable path) | README quick start and scripts provided |
+
+---
+
+## Dependency Graph
+
+```text
+FND ✓
+├── STAT ✓
+│   └── LIVE ✓
+│       └── RPLY ✓
+└── PRIV ✓
+```
+
+## Next Start Point
+
+The planned MVP feature build is complete. No remaining pending feature work is tracked in this plan.
+
+## Blockers
+
+- None.

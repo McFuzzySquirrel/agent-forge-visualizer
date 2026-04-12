@@ -1,0 +1,66 @@
+import { describe, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { EVENT_TYPES, parseEvent, SCHEMA_VERSION } from "../src/index.js";
+
+function baseEnvelope(eventType: string) {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    eventId: randomUUID(),
+    eventType,
+    timestamp: new Date().toISOString(),
+    sessionId: "session-1",
+    source: "copilot-cli",
+    repoPath: "/tmp/repo"
+  };
+}
+
+function payloadFor(eventType: string): Record<string, unknown> {
+  switch (eventType) {
+    case "preToolUse":
+      return { toolName: "bash", toolArgs: { command: "npm test" } };
+    case "postToolUse":
+      return { toolName: "bash", status: "success", durationMs: 42 };
+    case "postToolUseFailure":
+      return { toolName: "bash", status: "failure", durationMs: 42, errorSummary: "boom" };
+    case "subagentStart":
+      return { agentName: "Explore", agentDisplayName: "Explore" };
+    case "subagentStop":
+      return { agentName: "Explore" };
+    case "notification":
+      return { notificationType: "agent_completed", title: "Done", message: "ok" };
+    case "errorOccurred":
+      return { message: "error" };
+    default:
+      return {};
+  }
+}
+
+describe("event schema", () => {
+  it("validates all MVP event types", () => {
+    for (const eventType of EVENT_TYPES) {
+      const result = parseEvent({
+        ...baseEnvelope(eventType),
+        payload: payloadFor(eventType)
+      });
+      expect(result.ok).toBe(true);
+    }
+  });
+
+  it("rejects malformed event without throwing", () => {
+    const malformed = {
+      eventType: "preToolUse",
+      payload: { toolName: "bash" }
+    };
+    const result = parseEvent(malformed);
+    expect(result.ok).toBe(false);
+  });
+
+  it("accepts additive fields for compatibility", () => {
+    const result = parseEvent({
+      ...baseEnvelope("sessionStart"),
+      payload: { extra: true },
+      extraEnvelopeField: "future"
+    });
+    expect(result.ok).toBe(true);
+  });
+});
