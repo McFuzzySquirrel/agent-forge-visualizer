@@ -82,16 +82,22 @@ npm run serve:ingest
 npm run dev --workspace=packages/web-ui
 ```
 
-> **Offline / JSONL-only mode**: If the ingest service is not running, `emit-event.sh` still writes all events to `.visualizer/logs/events.jsonl` and exits cleanly. No events are lost. Start the ingest service later and replay from the JSONL file.
+> **Offline / JSONL-only mode**: If the ingest service is not running, `emit-event.sh` still writes all events to `.visualizer/logs/events.jsonl` and exits cleanly. No events are lost. Once the ingest service is up, replay the saved log:
+>
+> ```bash
+> # from the visualizer repo
+> npm run replay:jsonl -- /path/to/target-repo/.visualizer/logs/events.jsonl
+> ```
 
 Open:
 - `http://127.0.0.1:5173`
 
 ## Hook Configuration
 
-Generate the expected hook event configuration:
+From the visualizer repo root, generate the expected hook event configuration:
 
 ```bash
+# from ~/Projects/agent-forge-visualizer
 npx tsx scripts/configure-hooks.ts
 ```
 
