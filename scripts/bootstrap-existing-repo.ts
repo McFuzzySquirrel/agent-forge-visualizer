@@ -174,12 +174,12 @@ const HOOK_MAP: Record<string, { eventType: string; payloadSnippet: string; sess
   },
   "subagent-stop.sh": {
     eventType: "subagentStop",
-    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" --arg task "\${TASK_DESC:-}" '{"agentName":$agent,"taskDescription":$task}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-}}}}" '{"agentName":$agent,"taskDescription":$task,"message":$message,"summary":$message,"result":$message}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "subagent-start.sh": {
     eventType: "subagentStart",
-    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" '{"agentName":$agent}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" '{"agentName":$agent,"agentDisplayName":$agent,"message":$message,"summary":$message}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "log-prompt.sh": {
