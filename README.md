@@ -1,18 +1,35 @@
 # Copilot Agent Activity Visualizer
 
-Feature status:
-- Foundation Event Capture: implemented
-- Deterministic State Engine: implemented
-- Live Visualization Board: implemented
-- Replay and Session Review: implemented
-- Privacy Retention and Export Controls: implemented
+[![Build Status](https://img.shields.io/github/actions/workflow/status/McFuzzySquirrel/agent-forge-visualizer/ci.yml?style=flat-square)](https://github.com/McFuzzySquirrel/agent-forge-visualizer/actions)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24-3c873a?style=flat-square)](https://nodejs.org)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-## Quick Start
+Visualize Copilot agent runtime activity in real time and replay sessions from persisted JSONL logs.
 
-Prerequisites:
+The project is complete for the planned MVP scope:
+- Foundation Event Capture
+- Deterministic State Engine
+- Privacy Retention and Export Controls
+- Live Visualization Board
+- Replay and Session Review
+
+## Features
+
+- Canonical event schema with validation and malformed-record rejection
+- Hook emitter with JSONL persistence and optional HTTP event forwarding
+- Deterministic state machine with rebuild-from-log support
+- Live board UI with lane mapping and event inspector
+- Replay mode with timeline scrubbing, speed controls, and first-failure jump
+- Redaction and retention controls with safe defaults
+- Existing-repo bootstrap with automatic hook wiring for common lifecycle scripts
+
+## Getting Started
+
+### Prerequisites
+
 - Node.js 24+
 
-Install and verify:
+### Install and Verify
 
 ```bash
 npm install
@@ -20,95 +37,85 @@ npm run typecheck
 npm run test
 ```
 
-The foundation tests validate:
-- Canonical schema envelope and all MVP event types
-- Malformed record rejection without crashes
-- JSONL ingestion and optional localhost HTTP stream ingestion
-- Optional EJS overlay compatibility
-
-## Runtime Smoke Test
-
-Run a real end-to-end local flow (emitter -> ingest service -> state stream):
+### Run the Visualizer
 
 ```bash
-npm run smoke:e2e
+# terminal 1 (from this repo)
+npm run serve:ingest
+
+# terminal 2 (from this repo)
+npm run dev --workspace=packages/web-ui
 ```
 
-This command will:
-1. Start the ingest service on localhost.
-2. Emit a short session lifecycle via the hook emitter.
-3. Verify `/events` contains the expected event sequence.
-4. Verify `/state/stream` returns a completed session state snapshot.
-5. Clean up temporary files and stop the service.
+Open `http://127.0.0.1:5173`.
 
-## Integrate An Existing Repo (Bootstrap)
+> [!TIP]
+> Use `npm run smoke:e2e` to run a full emitter -> ingest -> state-stream runtime verification.
 
-Yes, a bootstrap step is recommended for adoption.
+## Integrate an Existing Repo
 
-From the visualizer repo, scaffold integration files into any existing target repo:
+Bootstrap integration in one command:
 
 ```bash
 npm run bootstrap:repo -- /absolute/path/to/target-repo
 ```
 
-This creates in the target repo:
+This creates:
 - `.visualizer/emit-event.sh`
 - `.visualizer/visualizer.config.json`
 - `.visualizer/HOOK_INTEGRATION.md`
-- auto-wired known lifecycle hooks in `.github/hooks/*.sh` (when present)
+- `.visualizer/logs/`
 
-No manual `chmod` or manual hook wiring is required for standard setups.
+And it auto-wires known hook scripts in `.github/hooks/*.sh` when present.
 
-If your repo uses non-standard hook filenames, wire them manually to call:
+> [!IMPORTANT]
+> For standard hook filenames, no manual `chmod` and no manual wiring are required.
+
+If your repo uses non-standard hook filenames, call the generated emitter manually from your hook script:
 
 ```bash
 .visualizer/emit-event.sh <eventType> '<payload-json>' <sessionId>
 ```
 
-**Start the ingest service and web UI first**, then run the emit commands:
+## Offline / JSONL Recovery
+
+If the ingest service is down, events are still appended to `.visualizer/logs/events.jsonl` by the generated script.
+
+Replay them after the service is up:
 
 ```bash
-# terminal 1 (from visualizer repo) — start ingest service on port 7070
-npm run serve:ingest
-
-# terminal 2 (from visualizer repo) — start web UI
-npm run dev --workspace=packages/web-ui
+npm run replay:jsonl -- /path/to/target-repo/.visualizer/logs/events.jsonl
 ```
-
-> **Offline / JSONL-only mode**: If the ingest service is not running, `emit-event.sh` still writes all events to `.visualizer/logs/events.jsonl` and exits cleanly. No events are lost. Once the ingest service is up, replay the saved log:
->
-> ```bash
-> # from the visualizer repo
-> npm run replay:jsonl -- /path/to/target-repo/.visualizer/logs/events.jsonl
-> ```
-
-Open:
-- `http://127.0.0.1:5173`
 
 ## Hook Configuration
 
-From the visualizer repo root, generate the expected hook event configuration:
+Print the supported hook event types from this repo:
 
 ```bash
-# from ~/Projects/agent-forge-visualizer
 npx tsx scripts/configure-hooks.ts
 ```
 
-This prints the lifecycle event set the emitter supports.
+## Package Layout
 
-## First Live Flow
+- `packages/hook-emitter`: emit + persist validated events
+- `packages/ingest-service`: Fastify ingest API + SSE state stream
+- `packages/web-ui`: React/Vite live board and replay UI
+- `shared/event-schema`: canonical event envelope + parser
+- `shared/state-machine`: deterministic reducer and state rebuild
+- `shared/redaction`: redaction, retention, and export controls
 
-The live flow is:
+## Useful Commands
 
-1. Emit schema-compliant events to JSONL using `@visualizer/hook-emitter`.
-2. Validate and parse events via `@visualizer/event-schema`.
-3. Ingest JSONL (and optionally HTTP stream) using `@visualizer/ingest-service`.
+```bash
+npm run test
+npm run test:watch
+npm run smoke:e2e
+npm run bootstrap:repo -- /absolute/path/to/target-repo
+npm run replay:jsonl -- /path/to/events.jsonl
+```
 
-Use tests as executable examples in:
-- `packages/hook-emitter/test/emitter.test.ts`
-- `packages/ingest-service/test/ingest.test.ts`
+## Documentation
 
-## Optional Agent Forge / EJS Overlay
-
-Integration is optional and does not affect base capture. See:
-- `docs/integrations/agent-forge-ejs-overlay.md`
+- Product vision: `docs/product-vision.md`
+- Progress tracker: `docs/PROGRESS.md`
+- Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
