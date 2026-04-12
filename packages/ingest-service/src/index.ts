@@ -1,6 +1,9 @@
 import { readFile } from "node:fs/promises";
 import Fastify, { type FastifyInstance } from "fastify";
 import { parseEvent, type EventEnvelope } from "../../../shared/event-schema/src/index.js";
+import { rebuildState, type SessionState } from "../../../shared/state-machine/src/index.js";
+
+export type { SessionState };
 
 export async function parseJsonlFile(filePath: string): Promise<EventEnvelope[]> {
   const content = await readFile(filePath, "utf8");
@@ -15,6 +18,15 @@ export async function parseJsonlFile(filePath: string): Promise<EventEnvelope[]>
   }
 
   return events;
+}
+
+/**
+ * Parses a JSONL file and replays all valid events through the deterministic
+ * state machine to reconstruct the current SessionState (STAT-FR-03).
+ */
+export async function rebuildStateFromFile(filePath: string): Promise<SessionState> {
+  const events = await parseJsonlFile(filePath);
+  return rebuildState(events);
 }
 
 export async function createIngestServer(): Promise<FastifyInstance> {

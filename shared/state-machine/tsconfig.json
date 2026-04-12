@@ -6,7 +6,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "../../shared/event-schema/src/**/*.ts",
-    "../../shared/state-machine/src/**/*.ts"
+    "../../shared/event-schema/src/**/*.ts"
   ]
 }

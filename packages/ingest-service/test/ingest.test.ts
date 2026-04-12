@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { emitEvent } from "../../hook-emitter/src/index.js";
-import { createIngestServer, parseJsonlFile } from "../src/index.js";
+import { createIngestServer, parseJsonlFile, rebuildStateFromFile } from "../src/index.js";
 
 describe("ingestion inputs", () => {
   it("parses append-only JSONL logs", async () => {
@@ -44,6 +44,28 @@ describe("ingestion inputs", () => {
     expect(body.count).toBe(1);
 
     await server.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe("rebuildStateFromFile (STAT-FR-03)", () => {
+  it("rebuilds session state from a JSONL log file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "rebuild-"));
+    const jsonlPath = join(dir, "events.jsonl");
+    const opts = { jsonlPath, repoPath: "/tmp/repo", sessionId: "rebuild-sess" };
+
+    await emitEvent("sessionStart", {}, opts);
+    await emitEvent("preToolUse", { toolName: "bash", toolArgs: { command: "ls" } }, opts);
+    await emitEvent("postToolUse", { toolName: "bash", status: "success", durationMs: 5 }, opts);
+
+    const state = await rebuildStateFromFile(jsonlPath);
+
+    expect(state.sessionId).toBe("rebuild-sess");
+    expect(state.lifecycle).toBe("active");
+    expect(state.visualization).toBe("tool_succeeded");
+    expect(state.currentTool?.toolName).toBe("bash");
+    expect(state.eventCount).toBe(3);
+
     await rm(dir, { recursive: true, force: true });
   });
 });
