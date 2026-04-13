@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchHookFilename } from "../bootstrap-existing-repo.js";
+import { matchHookFilename, updateEjsHooksManifest, updateHookManifest } from "../bootstrap-existing-repo.js";
 
 describe("matchHookFilename", () => {
   it("matches exact canonical names", () => {
@@ -61,5 +61,80 @@ describe("matchHookFilename", () => {
       expect(result, `${filename} should match`).toBeDefined();
       expect(result?.eventType).toBe(expectedEventType);
     }
+  });
+});
+
+describe("updateEjsHooksManifest", () => {
+  it("adds missing mapped events without changing existing ones", () => {
+    const manifest = {
+      version: 1,
+      hooks: {
+        sessionStart: [
+          {
+            type: "command",
+            bash: "./.github/hooks/session-start.sh",
+            cwd: ".",
+            timeoutSec: 15,
+          },
+        ],
+        subagentStop: [
+          {
+            type: "command",
+            bash: "./.github/hooks/subagent-stop.sh",
+            cwd: ".",
+            timeoutSec: 10,
+          },
+        ],
+      },
+    };
+
+    const { updated, addedEvents } = updateEjsHooksManifest(manifest, [
+      "sessionStart",
+      "subagentStart",
+      "subagentStop",
+    ]);
+
+    expect(addedEvents).toEqual(["subagentStart"]);
+    const hooks = updated.hooks as Record<string, unknown>;
+    const startCommands = hooks.subagentStart as Array<Record<string, unknown>>;
+    expect(startCommands[0]?.bash).toBe("./.github/hooks/subagent-start.sh");
+    expect(startCommands[0]?.timeoutSec).toBe(10);
+
+    const sessionCommands = hooks.sessionStart as Array<Record<string, unknown>>;
+    expect(sessionCommands[0]?.bash).toBe("./.github/hooks/session-start.sh");
+  });
+
+  it("supports prefixed hook filenames", () => {
+    const { updated, addedEvents } = updateEjsHooksManifest(
+      { version: 1, hooks: {} },
+      ["sessionStart", "subagentStart"],
+      "viz"
+    );
+
+    expect(addedEvents).toEqual(["sessionStart", "subagentStart"]);
+    const hooks = updated.hooks as Record<string, unknown>;
+    const sessionCommands = hooks.sessionStart as Array<Record<string, unknown>>;
+    const subagentCommands = hooks.subagentStart as Array<Record<string, unknown>>;
+    expect(sessionCommands[0]?.bash).toBe("./.github/hooks/viz-session-start.sh");
+    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/viz-subagent-start.sh");
+  });
+
+  it("initializes hooks object when manifest shape is incomplete", () => {
+    const { updated, addedEvents } = updateEjsHooksManifest({}, ["userPromptSubmitted"]);
+
+    expect(addedEvents).toEqual(["userPromptSubmitted"]);
+    expect((updated.hooks as Record<string, unknown>).userPromptSubmitted).toBeDefined();
+  });
+
+  it("exports the generic updater alias", () => {
+    const { updated, addedEvents } = updateHookManifest(
+      { version: 1, hooks: {} },
+      ["subagentStart"]
+    );
+
+    expect(addedEvents).toEqual(["subagentStart"]);
+    const hooks = updated.hooks as Record<string, unknown>;
+    const subagentCommands = hooks.subagentStart as Array<Record<string, unknown>>;
+    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/subagent-start.sh");
   });
 });

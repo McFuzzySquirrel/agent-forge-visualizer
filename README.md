@@ -88,6 +88,8 @@ npm run bootstrap:repo -- /path/to/target-repo --create-hooks --prefix viz
 
 This generates `viz-session-start.sh`, `viz-pre-tool-use.sh`, etc. instead of bare names. When wiring existing hooks, prefixed filenames like `viz-session-start.sh` are matched automatically.
 
+When bootstrapping, the tool also scans `.github/hooks/` for JSON hook manifests and updates any compatible manifest that contains a `hooks` object (for example `ejs-hooks.json` or other manifest names). Missing mapped lifecycle entries are added automatically based on discovered/generated hook scripts.
+
 > [!IMPORTANT]
 > For standard hook filenames (with or without prefix), no manual `chmod` and no manual wiring are required.
 

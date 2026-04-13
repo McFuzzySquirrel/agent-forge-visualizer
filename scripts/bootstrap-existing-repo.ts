@@ -218,6 +218,14 @@ interface HookMapping {
   sessionSnippet: string;
 }
 
+interface HookCommand {
+  type: string;
+  bash: string;
+  cwd?: string;
+  timeoutSec?: number;
+  [key: string]: unknown;
+}
+
 const HOOK_MAP: Record<string, HookMapping> = {
   "session-start.sh": {
     eventType: "sessionStart",
@@ -272,6 +280,77 @@ const HOOK_MAP: Record<string, HookMapping> = {
  * to avoid generating duplicate stubs for both "session-start.sh" and "sessionstart.sh".
  */
 const CANONICAL_HOOK_NAMES = Object.keys(HOOK_MAP).filter((name) => name.includes("-"));
+
+const EVENT_TO_CANONICAL_HOOK: Record<string, string> = CANONICAL_HOOK_NAMES.reduce<Record<string, string>>((acc, hookName) => {
+  acc[HOOK_MAP[hookName].eventType] = hookName;
+  return acc;
+}, {});
+
+const DEFAULT_TIMEOUT_BY_EVENT: Record<string, number> = {
+  sessionStart: 15,
+  sessionEnd: 15,
+  userPromptSubmitted: 5,
+  preToolUse: 10,
+  postToolUse: 10,
+  subagentStart: 10,
+  subagentStop: 10,
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function buildManifestCommand(eventType: string, prefix?: string): HookCommand | undefined {
+  const canonicalHook = EVENT_TO_CANONICAL_HOOK[eventType];
+  if (!canonicalHook) return undefined;
+
+  const hookFile = prefix ? `${prefix}-${canonicalHook}` : canonicalHook;
+  return {
+    type: "command",
+    bash: `./.github/hooks/${hookFile}`,
+    cwd: ".",
+    timeoutSec: DEFAULT_TIMEOUT_BY_EVENT[eventType] ?? 10,
+  };
+}
+
+export function updateEjsHooksManifest(
+  manifestRaw: unknown,
+  availableEvents: readonly string[],
+  prefix?: string
+): { updated: Record<string, unknown>; addedEvents: string[] } {
+  const manifest: Record<string, unknown> = isRecord(manifestRaw)
+    ? { ...manifestRaw }
+    : { version: 1 };
+  const existingHooks = isRecord(manifest.hooks) ? { ...manifest.hooks } : {};
+  const addedEvents: string[] = [];
+
+  for (const eventType of availableEvents) {
+    const current = existingHooks[eventType];
+    if (Array.isArray(current) && current.length > 0) {
+      continue;
+    }
+
+    const cmd = buildManifestCommand(eventType, prefix);
+    if (!cmd) continue;
+
+    existingHooks[eventType] = [cmd];
+    addedEvents.push(eventType);
+  }
+
+  return {
+    updated: {
+      ...manifest,
+      hooks: existingHooks,
+    },
+    addedEvents,
+  };
+}
+
+export const updateHookManifest = updateEjsHooksManifest;
+
+function isCompatibleHookManifest(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && isRecord(value.hooks);
+}
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -396,6 +475,78 @@ async function createStubHooks(targetRepo: string, prefix?: string): Promise<num
   return created;
 }
 
+async function findJsonFiles(dir: string): Promise<{ relPath: string; absPath: string }[]> {
+  const results: { relPath: string; absPath: string }[] = [];
+
+  async function walk(currentDir: string, relBase: string): Promise<void> {
+    let entries: string[];
+    try {
+      entries = await readdir(currentDir);
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const absEntry = join(currentDir, entry);
+      const relEntry = relBase ? join(relBase, entry) : entry;
+      const info = await stat(absEntry);
+
+      if (info.isDirectory()) {
+        await walk(absEntry, relEntry);
+      } else if (info.isFile() && entry.endsWith(".json")) {
+        results.push({ relPath: relEntry, absPath: absEntry });
+      }
+    }
+  }
+
+  await walk(dir, "");
+  return results;
+}
+
+async function syncHookManifests(
+  targetRepo: string,
+  coveredEvents: ReadonlySet<string>,
+  prefix?: string
+): Promise<void> {
+  const hooksDir = join(targetRepo, ".github", "hooks");
+  const manifests = await findJsonFiles(hooksDir);
+
+  if (manifests.length === 0) {
+    return;
+  }
+
+  const orderedCoveredEvents = CANONICAL_HOOK_NAMES
+    .map((hookName) => HOOK_MAP[hookName].eventType)
+    .filter((eventType, idx, list) => list.indexOf(eventType) === idx)
+    .filter((eventType) => coveredEvents.has(eventType));
+
+  for (const { relPath, absPath } of manifests) {
+    const manifestLabel = `.github/hooks/${relPath.replaceAll("\\", "/")}`;
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await readFile(absPath, "utf8"));
+    } catch {
+      console.log(`\nSKIP  ${manifestLabel} — invalid JSON (left unchanged)`);
+      continue;
+    }
+
+    if (!isCompatibleHookManifest(parsed)) {
+      console.log(`\nSKIP  ${manifestLabel} — no hooks object`);
+      continue;
+    }
+
+    const { updated, addedEvents } = updateEjsHooksManifest(parsed, orderedCoveredEvents, prefix);
+    if (addedEvents.length === 0) {
+      console.log(`\nOK    ${manifestLabel} — already includes mapped hooks`);
+      continue;
+    }
+
+    await writeFile(absPath, `${JSON.stringify(updated, null, 2)}\n`, "utf8");
+    console.log(`\nPATCH ${manifestLabel} — added: ${addedEvents.join(", ")}`);
+  }
+}
+
 async function wireHooks(targetRepo: string, prefix?: string, createHooks?: boolean): Promise<void> {
   const hooksDir = join(targetRepo, ".github", "hooks");
 
@@ -411,6 +562,13 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
     if (createHooks) {
       console.log(`\nNo .github/hooks/ directory found — creating stub hooks:`);
       const created = await createStubHooks(targetRepo, prefix);
+      const finalFiles = await findShellScripts(hooksDir);
+      const finalCoveredEvents = new Set<string>();
+      for (const { relPath } of finalFiles) {
+        const match = matchHookFilename(relPath, prefix);
+        if (match) finalCoveredEvents.add(match.eventType);
+      }
+      await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
       console.log(`\nCreated ${created} stub hook scripts in ${hooksDir}`);
       return;
     }
@@ -427,6 +585,13 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
     if (createHooks) {
       console.log(`\nNo .sh files found in .github/hooks/ — creating stub hooks:`);
       const created = await createStubHooks(targetRepo, prefix);
+      const finalFiles = await findShellScripts(hooksDir);
+      const finalCoveredEvents = new Set<string>();
+      for (const { relPath } of finalFiles) {
+        const match = matchHookFilename(relPath, prefix);
+        if (match) finalCoveredEvents.add(match.eventType);
+      }
+      await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
       console.log(`\nCreated ${created} stub hook scripts in ${hooksDir}`);
       return;
     }
@@ -511,6 +676,14 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
       }
     }
   }
+
+  const finalFiles = await findShellScripts(hooksDir);
+  const finalCoveredEvents = new Set<string>();
+  for (const { relPath } of finalFiles) {
+    const match = matchHookFilename(relPath, prefix);
+    if (match) finalCoveredEvents.add(match.eventType);
+  }
+  await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
 
   console.log(`\nHook wiring complete: ${wired} wired, ${skipped} skipped.`);
   console.log("\nNext steps:");
