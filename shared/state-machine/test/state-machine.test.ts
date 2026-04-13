@@ -49,7 +49,7 @@ function buildFullSequence(): EventEnvelope[] {
     makeEvent("userPromptSubmitted",   { prompt: "List files" },                      1),
     makeEvent("preToolUse",            { toolName: "read_file", toolArgs: { f: "x" } }, 2),
     makeEvent("postToolUse",           { toolName: "read_file", status: "success", durationMs: 42 }, 3),
-    makeEvent("subagentStart",         { agentName: "sub-1", agentDisplayName: "Sub One" }, 4),
+    makeEvent("subagentStart",         { agentName: "sub-1", agentDisplayName: "Sub One", agentDescription: "Subagent research", message: "Inspect the repo", summary: "Inspect the repo" }, 4),
     makeEvent("subagentStop",          { agentName: "sub-1" },                        5),
     makeEvent("preToolUse",            { toolName: "write_file" },                    6),
     makeEvent("postToolUseFailure",    { toolName: "write_file", status: "failure", errorSummary: "Permission denied" }, 7),
@@ -164,10 +164,20 @@ describe("STAT-FR-01: Transition mapping (Product Vision §10.3)", () => {
   it("subagentStart → visualization: subagent_running, activeSubagent populated", () => {
     let state = initialSessionState(SESSION_ID);
     state = reduceEvent(state, makeEvent("sessionStart", {}));
-    state = reduceEvent(state, makeEvent("subagentStart", { agentName: "sub-a", agentDisplayName: "Sub A" }));
+    state = reduceEvent(state, makeEvent("subagentStart", {
+      agentName: "sub-a",
+      agentDisplayName: "Sub A",
+      agentDescription: "Investigate schema drift",
+      taskDescription: "Trace subagent payload",
+      message: "Starting trace",
+      summary: "Starting trace"
+    }));
     expect(state.visualization).toBe("subagent_running");
     expect(state.activeSubagent?.agentName).toBe("sub-a");
     expect(state.activeSubagent?.agentDisplayName).toBe("Sub A");
+    expect(state.activeSubagent?.agentDescription).toBe("Investigate schema drift");
+    expect(state.activeSubagent?.taskDescription).toBe("Trace subagent payload");
+    expect(state.activeSubagent?.summary).toBe("Starting trace");
   });
 
   it("subagentStop → visualization: idle, activeSubagent cleared", () => {

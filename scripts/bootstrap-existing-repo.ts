@@ -226,6 +226,11 @@ interface HookCommand {
   [key: string]: unknown;
 }
 
+const SUBAGENT_NAME_FALLBACK = "\${AGENT_NAME:-\${SUBAGENT_NAME:-\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPLAY_NAME:-\${TASK_DESC:-unknown}}}}}";
+const SUBAGENT_DISPLAY_NAME_FALLBACK = "\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPLAY_NAME:-\${AGENT_NAME:-\${SUBAGENT_NAME:-\${TASK_DESC:-unknown}}}}}";
+const SUBAGENT_DETAIL_FALLBACK = "\${AGENT_DESCRIPTION:-\${SUBAGENT_DESCRIPTION:-\${TASK_DESC:-\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}}}}";
+const SUBAGENT_MESSAGE_FALLBACK = "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${TASK_DESC:-}}}}";
+
 const HOOK_MAP: Record<string, HookMapping> = {
   "session-start.sh": {
     eventType: "sessionStart",
@@ -249,12 +254,12 @@ const HOOK_MAP: Record<string, HookMapping> = {
   },
   "subagent-stop.sh": {
     eventType: "subagentStop",
-    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-}}}}" '{"agentName":$agent,"taskDescription":$task,"message":$message,"summary":$message,"result":$message}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-}}}}" '{"agentName":$agent,"taskDescription":$task,"message":$message,"summary":$message,"result":$message}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "subagent-start.sh": {
     eventType: "subagentStart",
-    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-unknown}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" '{"agentName":$agent,"agentDisplayName":$agent,"message":$message,"summary":$message}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg display "${SUBAGENT_DISPLAY_NAME_FALLBACK}" --arg description "${SUBAGENT_DETAIL_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "${SUBAGENT_MESSAGE_FALLBACK}" '{"agentName":$agent,"agentDisplayName":$display,"agentDescription":$description,"taskDescription":$task,"message":$message,"summary":$message}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "log-prompt.sh": {

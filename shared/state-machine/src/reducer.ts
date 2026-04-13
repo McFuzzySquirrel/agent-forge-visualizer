@@ -100,6 +100,10 @@ export function reduceEvent(state: SessionState, event: EventEnvelope): SessionS
         activeSubagent: {
           agentName: event.payload.agentName,
           agentDisplayName: event.payload.agentDisplayName,
+          agentDescription: event.payload.agentDescription,
+          taskDescription: event.payload.taskDescription,
+          message: event.payload.message,
+          summary: event.payload.summary,
         },
       };
 

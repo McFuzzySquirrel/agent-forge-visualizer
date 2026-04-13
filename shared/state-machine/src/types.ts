@@ -27,6 +27,10 @@ export interface ToolInfo {
 export interface SubagentInfo {
   agentName: string;
   agentDisplayName?: string;
+  agentDescription?: string;
+  taskDescription?: string;
+  message?: string;
+  summary?: string;
 }
 
 /**

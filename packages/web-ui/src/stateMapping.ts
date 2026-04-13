@@ -62,7 +62,12 @@ export function mapStateToLanes(state: SessionState): LaneData[] {
     lanes.push({
       id: "subagent",
       label: `Agent: ${state.activeSubagent.agentDisplayName ?? state.activeSubagent.agentName}`,
-      status: "subagent_running"
+      status: "subagent_running",
+      details:
+        state.activeSubagent.agentDescription
+        ?? state.activeSubagent.taskDescription
+        ?? state.activeSubagent.summary
+        ?? state.activeSubagent.message
     });
   }
 

@@ -23,9 +23,22 @@ function payloadFor(eventType: string): Record<string, unknown> {
     case "postToolUseFailure":
       return { toolName: "bash", status: "failure", durationMs: 42, errorSummary: "boom" };
     case "subagentStart":
-      return { agentName: "Explore", agentDisplayName: "Explore" };
+      return {
+        agentName: "Explore",
+        agentDisplayName: "Explore Agent",
+        agentDescription: "Codebase exploration",
+        taskDescription: "Inspect subagent lifecycle",
+        message: "Starting Explore",
+        summary: "Starting Explore"
+      };
     case "subagentStop":
-      return { agentName: "Explore" };
+      return {
+        agentName: "Explore",
+        taskDescription: "Inspect subagent lifecycle",
+        message: "Explore finished",
+        summary: "Explore finished",
+        result: "Explore finished"
+      };
     case "notification":
       return { notificationType: "agent_completed", title: "Done", message: "ok" };
     case "errorOccurred":
@@ -62,5 +75,19 @@ describe("event schema", () => {
       extraEnvelopeField: "future"
     });
     expect(result.ok).toBe(true);
+  });
+
+  it("accepts rich subagent lifecycle payloads", () => {
+    const start = parseEvent({
+      ...baseEnvelope("subagentStart"),
+      payload: payloadFor("subagentStart")
+    });
+    const stop = parseEvent({
+      ...baseEnvelope("subagentStop"),
+      payload: payloadFor("subagentStop")
+    });
+
+    expect(start.ok).toBe(true);
+    expect(stop.ok).toBe(true);
   });
 });

@@ -126,7 +126,11 @@ describe("mapStateToLanes: LIVE-FR-01 (session + activity lanes)", () => {
   it("after subagentStart, subagent lane appears and session shows subagent_running", () => {
     const state = applyEvents([
       makeEvent("sessionStart", {}),
-      makeEvent("subagentStart", { agentName: "Explore", agentDisplayName: "Explore Agent" })
+      makeEvent("subagentStart", {
+        agentName: "Explore",
+        agentDisplayName: "Explore Agent",
+        agentDescription: "Codebase exploration"
+      })
     ]);
     const lanes = mapStateToLanes(state);
 
@@ -135,6 +139,7 @@ describe("mapStateToLanes: LIVE-FR-01 (session + activity lanes)", () => {
     expect(agentLane).toBeDefined();
     expect(agentLane?.label).toContain("Explore Agent");
     expect(agentLane?.status).toBe("subagent_running");
+    expect(agentLane?.details).toBe("Codebase exploration");
   });
 
   it("after subagentStop, subagent lane is removed and session returns to idle", () => {
@@ -186,5 +191,19 @@ describe("mapStateToLanes: LIVE-FR-01 (session + activity lanes)", () => {
     ]);
     const agentLane = mapStateToLanes(state).find((l) => l.id === "subagent");
     expect(agentLane?.label).toContain("raw-name");
+  });
+
+  it("falls back through task and summary fields for subagent details", () => {
+    const withTask = applyEvents([
+      makeEvent("sessionStart", {}),
+      makeEvent("subagentStart", { agentName: "planner", taskDescription: "Plan the patch" })
+    ]);
+    const withSummary = applyEvents([
+      makeEvent("sessionStart", {}),
+      makeEvent("subagentStart", { agentName: "planner", summary: "Plan ready" })
+    ]);
+
+    expect(mapStateToLanes(withTask).find((l) => l.id === "subagent")?.details).toBe("Plan the patch");
+    expect(mapStateToLanes(withSummary).find((l) => l.id === "subagent")?.details).toBe("Plan ready");
   });
 });

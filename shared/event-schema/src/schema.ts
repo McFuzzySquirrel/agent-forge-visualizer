@@ -52,10 +52,17 @@ const PayloadSchemas = {
   subagentStart: z.object({
     agentName: z.string().min(1),
     agentDisplayName: z.string().optional(),
-    agentDescription: z.string().optional()
+    agentDescription: z.string().optional(),
+    taskDescription: z.string().optional(),
+    message: z.string().optional(),
+    summary: z.string().optional()
   }).catchall(z.unknown()),
   subagentStop: z.object({
-    agentName: z.string().min(1)
+    agentName: z.string().min(1),
+    taskDescription: z.string().optional(),
+    message: z.string().optional(),
+    summary: z.string().optional(),
+    result: z.string().optional()
   }).catchall(z.unknown()),
   agentStop: z.object({
     agentName: z.string().optional()

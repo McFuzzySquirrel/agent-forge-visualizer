@@ -78,6 +78,8 @@ npm run bootstrap:repo -- /path/to/target-repo --create-hooks
 
 This creates `.github/hooks/` with scripts for every lifecycle event (session start/end, tool use, subagent start/stop, etc.), each pre-wired to emit visualizer events.
 
+Generated subagent hooks now capture richer start metadata when the host integration provides it, including display name, description, task text, and summary/message fields. The generated stubs prefer `AGENT_NAME` and `SUBAGENT_NAME`, then fall back through display-name and task-description style variables before using `unknown`.
+
 ### Naming Prefix
 
 Use `--prefix` to avoid filename collisions with existing hooks:
@@ -89,6 +91,19 @@ npm run bootstrap:repo -- /path/to/target-repo --create-hooks --prefix viz
 This generates `viz-session-start.sh`, `viz-pre-tool-use.sh`, etc. instead of bare names. When wiring existing hooks, prefixed filenames like `viz-session-start.sh` are matched automatically.
 
 When bootstrapping, the tool also scans `.github/hooks/` for JSON hook manifests and updates any compatible manifest that contains a `hooks` object (for example `ejs-hooks.json` or other manifest names). Missing mapped lifecycle entries are added automatically based on discovered/generated hook scripts.
+
+### Refresh Existing Generated Hooks
+
+If you already bootstrapped another repo before this metadata update, its existing generated hook stubs will keep their old payload logic until you refresh them.
+
+Recommended refresh flow:
+
+```bash
+npm run unbootstrap:repo -- /absolute/path/to/target-repo --apply
+npm run bootstrap:repo -- /absolute/path/to/target-repo --create-hooks
+```
+
+If you use prefixed hook names, include the same prefix in both commands.
 
 ## Unbootstrap Target Repo
 

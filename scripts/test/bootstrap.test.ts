@@ -62,6 +62,20 @@ describe("matchHookFilename", () => {
       expect(result?.eventType).toBe(expectedEventType);
     }
   });
+
+  it("uses resilient subagent-start fallbacks for agent metadata", () => {
+    const mapping = matchHookFilename("subagent-start.sh");
+
+    expect(mapping).toBeDefined();
+    expect(mapping?.payloadSnippet).toContain("AGENT_NAME");
+    expect(mapping?.payloadSnippet).toContain("SUBAGENT_NAME");
+    expect(mapping?.payloadSnippet).toContain("AGENT_DISPLAY_NAME");
+    expect(mapping?.payloadSnippet).toContain("SUBAGENT_DISPLAY_NAME");
+    expect(mapping?.payloadSnippet).toContain("AGENT_DESCRIPTION");
+    expect(mapping?.payloadSnippet).toContain("TASK_DESC");
+    expect(mapping?.payloadSnippet).toContain('"agentDescription":$description');
+    expect(mapping?.payloadSnippet).toContain('"summary":$message');
+  });
 });
 
 describe("updateEjsHooksManifest", () => {

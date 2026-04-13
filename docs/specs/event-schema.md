@@ -84,9 +84,14 @@ Each event record is a single JSON object.
 {
   "agentName": "Explore",
   "agentDisplayName": "Explore",
-  "agentDescription": "Codebase exploration"
+  "agentDescription": "Codebase exploration",
+  "taskDescription": "Inspect subagent lifecycle",
+  "message": "Starting Explore",
+  "summary": "Starting Explore"
 }
 ```
+
+`taskDescription`, `message`, and `summary` are optional compatibility fields for integrations that can provide richer active-subagent context at start time.
 
 ### `notification`
 
