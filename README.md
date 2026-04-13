@@ -90,6 +90,34 @@ This generates `viz-session-start.sh`, `viz-pre-tool-use.sh`, etc. instead of ba
 
 When bootstrapping, the tool also scans `.github/hooks/` for JSON hook manifests and updates any compatible manifest that contains a `hooks` object (for example `ejs-hooks.json` or other manifest names). Missing mapped lifecycle entries are added automatically based on discovered/generated hook scripts.
 
+## Unbootstrap Target Repo
+
+To remove visualizer integration from a target repo, use the unbootstrap command.
+
+Dry-run (default, no file changes):
+
+```bash
+npm run unbootstrap:repo -- /absolute/path/to/target-repo
+```
+
+Apply changes (actually remove wiring/artifacts):
+
+```bash
+npm run unbootstrap:repo -- /absolute/path/to/target-repo --apply
+```
+
+If bootstrap used prefixed hook names, include the same prefix:
+
+```bash
+npm run unbootstrap:repo -- /absolute/path/to/target-repo --prefix viz --apply
+```
+
+Unbootstrap behavior:
+- Removes auto-wired visualizer emit blocks from hook scripts.
+- Updates compatible JSON hook manifests under `.github/hooks/` recursively by removing bootstrap-managed entries.
+- Deletes safe auto-generated stub hooks (boilerplate-only).
+- Removes `.visualizer/` in apply mode.
+
 > [!IMPORTANT]
 > For standard hook filenames (with or without prefix), no manual `chmod` and no manual wiring are required.
 
@@ -133,6 +161,7 @@ npm run test
 npm run test:watch
 npm run smoke:e2e
 npm run bootstrap:repo -- /absolute/path/to/target-repo
+npm run unbootstrap:repo -- /absolute/path/to/target-repo
 npm run replay:jsonl -- /path/to/events.jsonl
 ```
 
