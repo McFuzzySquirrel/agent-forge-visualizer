@@ -66,10 +66,30 @@ This creates:
 - `.visualizer/HOOK_INTEGRATION.md`
 - `.visualizer/logs/`
 
-And it auto-wires known hook scripts in `.github/hooks/*.sh` when present.
+And it auto-wires known hook scripts in `.github/hooks/` (including subdirectories) when present.
+
+### No Existing Hooks?
+
+Use `--create-hooks` to generate stub hook scripts automatically:
+
+```bash
+npm run bootstrap:repo -- /path/to/target-repo --create-hooks
+```
+
+This creates `.github/hooks/` with scripts for every lifecycle event (session start/end, tool use, subagent start/stop, etc.), each pre-wired to emit visualizer events.
+
+### Naming Prefix
+
+Use `--prefix` to avoid filename collisions with existing hooks:
+
+```bash
+npm run bootstrap:repo -- /path/to/target-repo --create-hooks --prefix viz
+```
+
+This generates `viz-session-start.sh`, `viz-pre-tool-use.sh`, etc. instead of bare names. When wiring existing hooks, prefixed filenames like `viz-session-start.sh` are matched automatically.
 
 > [!IMPORTANT]
-> For standard hook filenames, no manual `chmod` and no manual wiring are required.
+> For standard hook filenames (with or without prefix), no manual `chmod` and no manual wiring are required.
 
 If your repo uses non-standard hook filenames, call the generated emitter manually from your hook script:
 

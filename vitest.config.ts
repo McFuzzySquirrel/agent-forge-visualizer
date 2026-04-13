@@ -4,12 +4,16 @@ export default defineConfig({
   test: {
     include: [
       "shared/**/test/**/*.test.ts",
-      "packages/**/test/**/*.test.ts"
+      "packages/**/test/**/*.test.ts",
+      "scripts/test/**/*.test.ts"
     ],
     coverage: {
       enabled: true,
       provider: "v8",
       reporter: ["text", "lcov"],
+      exclude: [
+        "scripts/**"
+      ],
       thresholds: {
         lines: 80,
         functions: 70,
