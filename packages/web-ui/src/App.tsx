@@ -13,7 +13,9 @@ import {
   stepReplayIndex,
   toInspectorEntry
 } from "./replay.js";
+import { buildGanttData } from "./ganttData.js";
 import { LiveBoard } from "./components/LiveBoard.js";
+import { GanttChart } from "./components/GanttChart.js";
 import { EventInspector } from "./components/EventInspector.js";
 import { FilterControls } from "./components/FilterControls.js";
 import { ReplayControls } from "./components/ReplayControls.js";
@@ -123,6 +125,7 @@ export function App() {
   const lanes = mapStateToLanes(displayedState);
   const timelineSource = replayMode ? replayEvents : allEvents;
   const filteredEvents = applyFilter(timelineSource, filter);
+  const ganttRows = useMemo(() => buildGanttData(filteredEvents), [filteredEvents]);
 
   const handleSelectEvent = useCallback((event: EventEnvelope) => {
     setSelected({
@@ -167,46 +170,165 @@ export function App() {
   }, [firstFailureIndex]);
 
   return (
-    <main>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Copilot Agent Activity Visualizer</h1>
-        <span aria-live="polite" role="status">
-          {connected ? "● Connected" : "○ Connecting…"}
+    <main style={{ maxWidth: 1440, margin: "0 auto", padding: "1.5rem 2rem" }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "1.5rem",
+          paddingBottom: "1rem",
+          borderBottom: "1px solid #334155",
+        }}
+      >
+        <h1 style={{ fontSize: "1.4rem", margin: 0, letterSpacing: "-0.01em" }}>
+          Copilot Agent Activity Visualizer
+        </h1>
+        <span
+          aria-live="polite"
+          role="status"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: "0.85rem",
+            color: connected ? "#22c55e" : "#f59e0b",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: connected ? "#22c55e" : "#f59e0b",
+            }}
+          />
+          {connected ? "Connected" : "Connecting…"}
         </span>
       </header>
 
+      {/* Gantt Chart - visual centerpiece */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#94a3b8", fontWeight: 500 }}>
+          Timeline
+        </h2>
+        <GanttChart rows={ganttRows} />
+      </div>
+
       <div style={{ display: "flex", gap: "1.5rem" }}>
-        <div style={{ flex: 1 }}>
-          <LiveBoard lanes={lanes} />
+        {/* Left column */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Live Board */}
+          <div
+            style={{
+              background: "#1e293b",
+              borderRadius: 10,
+              border: "1px solid #475569",
+              padding: "1rem 1.25rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <LiveBoard lanes={lanes} />
+          </div>
 
-          <ReplayControls
-            canReplay={replayFrames.length > 0}
-            isReplayMode={replayMode}
-            isPlaying={isPlaying}
-            currentIndex={replayIndex}
-            maxIndex={replayFrames.length - 1}
-            speed={replaySpeed}
-            firstFailureIndex={firstFailureIndex}
-            onReplayModeChange={handleReplayModeChange}
-            onPlayPause={handlePlayPause}
-            onScrub={handleScrub}
-            onSpeedChange={setReplaySpeed}
-            onJumpToFailure={handleJumpToFailure}
-          />
+          {/* Replay Controls */}
+          <div
+            style={{
+              background: "#1e293b",
+              borderRadius: 10,
+              border: "1px solid #475569",
+              padding: "1rem 1.25rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <ReplayControls
+              canReplay={replayFrames.length > 0}
+              isReplayMode={replayMode}
+              isPlaying={isPlaying}
+              currentIndex={replayIndex}
+              maxIndex={replayFrames.length - 1}
+              speed={replaySpeed}
+              firstFailureIndex={firstFailureIndex}
+              onReplayModeChange={handleReplayModeChange}
+              onPlayPause={handlePlayPause}
+              onScrub={handleScrub}
+              onSpeedChange={setReplaySpeed}
+              onJumpToFailure={handleJumpToFailure}
+            />
+          </div>
 
-          <FilterControls filter={filter} onChange={setFilter} />
+          {/* Filter Controls */}
+          <div
+            style={{
+              background: "#1e293b",
+              borderRadius: 10,
+              border: "1px solid #475569",
+              padding: "1rem 1.25rem",
+              marginBottom: "1rem",
+            }}
+          >
+            <FilterControls filter={filter} onChange={setFilter} />
+          </div>
 
-          <section aria-label="Event timeline">
-            <h2>Events ({filteredEvents.length})</h2>
-            <ul style={{ listStyle: "none", padding: 0 }}>
+          {/* Event list */}
+          <section
+            aria-label="Event timeline"
+            style={{
+              background: "#1e293b",
+              borderRadius: 10,
+              border: "1px solid #475569",
+              padding: "1rem 1.25rem",
+            }}
+          >
+            <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>
+              Events ({filteredEvents.length})
+            </h2>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {filteredEvents.map((ev) => (
                 <li key={ev.eventId}>
                   <button
                     onClick={() => handleSelectEvent(ev)}
                     aria-label={`Inspect ${ev.eventType} event at ${ev.timestamp}`}
-                    style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      borderBottom: "1px solid #334155",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      width: "100%",
+                      padding: "0.5rem 0.25rem",
+                      color: "#f1f5f9",
+                      display: "flex",
+                      gap: "0.5rem",
+                      alignItems: "center",
+                    }}
                   >
-                    <strong>{ev.eventType}</strong> — {ev.timestamp}
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                        background:
+                          ev.eventType === "errorOccurred" || ev.eventType === "postToolUseFailure"
+                            ? "#ef4444"
+                            : ev.eventType === "preToolUse"
+                              ? "#f59e0b"
+                              : ev.eventType === "postToolUse"
+                                ? "#22c55e"
+                                : ev.eventType === "subagentStart" || ev.eventType === "subagentStop"
+                                  ? "#a855f7"
+                                  : ev.eventType === "userPromptSubmitted"
+                                    ? "#06b6d4"
+                                    : "#3b82f6",
+                      }}
+                    />
+                    <strong style={{ fontSize: "0.85rem" }}>{ev.eventType}</strong>
+                    <span style={{ color: "#94a3b8", fontSize: "0.8rem", marginLeft: "auto" }}>
+                      {new Date(ev.timestamp).toLocaleTimeString()}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -214,7 +336,8 @@ export function App() {
           </section>
         </div>
 
-        <div style={{ width: "320px", flexShrink: 0 }}>
+        {/* Right column - Inspector */}
+        <div style={{ width: 340, flexShrink: 0 }}>
           <EventInspector entry={selected} />
         </div>
       </div>

@@ -13,8 +13,13 @@ interface Props {
 export function FilterControls({ filter, onChange }: Props) {
   return (
     <div role="search" aria-label="Filter controls">
-      <label htmlFor="actor-filter">Actor / Tool Name</label>
-      <br />
+      <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>Filters</h2>
+      <label
+        htmlFor="actor-filter"
+        style={{ fontSize: "0.85rem", color: "#94a3b8", display: "block", marginBottom: 4 }}
+      >
+        Actor / Tool Name
+      </label>
       <input
         id="actor-filter"
         type="text"
@@ -28,22 +33,41 @@ export function FilterControls({ filter, onChange }: Props) {
 
       <fieldset>
         <legend>Event Types</legend>
-        {EVENT_TYPES.map((et) => (
-          <label key={et} style={{ display: "block", marginBottom: "0.25rem" }}>
-            <input
-              type="checkbox"
-              checked={filter.eventTypes?.includes(et) ?? false}
-              onChange={(e) => {
-                const current = filter.eventTypes ?? [];
-                const next = e.target.checked
-                  ? [...current, et]
-                  : current.filter((t) => t !== et);
-                onChange({ ...filter, eventTypes: next.length > 0 ? next : undefined });
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "0.25rem 0.75rem",
+          }}
+        >
+          {EVENT_TYPES.map((et) => (
+            <label
+              key={et}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: "0.82rem",
+                cursor: "pointer",
+                padding: "2px 0",
+                color: "#f1f5f9",
               }}
-            />{" "}
-            {et}
-          </label>
-        ))}
+            >
+              <input
+                type="checkbox"
+                checked={filter.eventTypes?.includes(et) ?? false}
+                onChange={(e) => {
+                  const current = filter.eventTypes ?? [];
+                  const next = e.target.checked
+                    ? [...current, et]
+                    : current.filter((t) => t !== et);
+                  onChange({ ...filter, eventTypes: next.length > 0 ? next : undefined });
+                }}
+              />
+              {et}
+            </label>
+          ))}
+        </div>
       </fieldset>
     </div>
   );
