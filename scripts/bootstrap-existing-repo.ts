@@ -266,16 +266,12 @@ const HOOK_MAP: Record<string, HookMapping> = {
   },
 };
 
-/** Canonical stub filenames — the hyphenated variants from HOOK_MAP. */
-const CANONICAL_HOOK_NAMES = [
-  "session-start.sh",
-  "session-end.sh",
-  "subagent-start.sh",
-  "subagent-stop.sh",
-  "log-prompt.sh",
-  "pre-tool-use.sh",
-  "post-tool-use.sh",
-];
+/**
+ * Canonical stub filenames — the hyphenated variants from HOOK_MAP.
+ * Derived from HOOK_MAP keys, keeping only hyphenated names (one per event type)
+ * to avoid generating duplicate stubs for both "session-start.sh" and "sessionstart.sh".
+ */
+const CANONICAL_HOOK_NAMES = Object.keys(HOOK_MAP).filter((name) => name.includes("-"));
 
 function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
