@@ -24,6 +24,18 @@ import type { FilterConfig, InspectorEntry, ReplaySpeed } from "./types.js";
 /** Ingest service base URL — matches the default Fastify server binding. */
 const INGEST_BASE = "http://127.0.0.1:7070";
 
+/** Color mapping for event type indicator dots in the timeline list. */
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  errorOccurred: "#ef4444",
+  postToolUseFailure: "#ef4444",
+  preToolUse: "#f59e0b",
+  postToolUse: "#22c55e",
+  subagentStart: "#a855f7",
+  subagentStop: "#a855f7",
+  userPromptSubmitted: "#06b6d4",
+};
+const DEFAULT_EVENT_COLOR = "#3b82f6";
+
 export function App() {
   const [sessionState, setSessionState] = useState<SessionState>(
     initialSessionState("unknown")
@@ -311,18 +323,7 @@ export function App() {
                         height: 8,
                         borderRadius: "50%",
                         flexShrink: 0,
-                        background:
-                          ev.eventType === "errorOccurred" || ev.eventType === "postToolUseFailure"
-                            ? "#ef4444"
-                            : ev.eventType === "preToolUse"
-                              ? "#f59e0b"
-                              : ev.eventType === "postToolUse"
-                                ? "#22c55e"
-                                : ev.eventType === "subagentStart" || ev.eventType === "subagentStop"
-                                  ? "#a855f7"
-                                  : ev.eventType === "userPromptSubmitted"
-                                    ? "#06b6d4"
-                                    : "#3b82f6",
+                        background: EVENT_TYPE_COLORS[ev.eventType] ?? DEFAULT_EVENT_COLOR,
                       }}
                     />
                     <strong style={{ fontSize: "0.85rem" }}>{ev.eventType}</strong>

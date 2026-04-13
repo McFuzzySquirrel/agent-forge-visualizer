@@ -12,6 +12,8 @@ const TIME_AXIS_HEIGHT = 32;
 const BAR_V_PADDING = 6;
 const MIN_BAR_WIDTH = 6;
 const POINT_EVENT_WIDTH = 8;
+const MIN_PIXELS_PER_TICK = 100;
+const MAX_TOOLTIP_VALUE_LENGTH = 120;
 
 const CATEGORY_COLORS: Record<GanttSegment["category"], string> = {
   session: "var(--gantt-session, #3b82f6)",
@@ -77,10 +79,9 @@ function Tooltip({ data }: { data: TooltipData }) {
     boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
   };
 
-  // Extract key payload fields (skip very long values)
-  const MAX_TOOLTIP_VALUE_LENGTH = 120;
+  // Extract key payload fields (skip very long values and nested objects)
   const detailEntries = Object.entries(segment.details)
-    .filter(([, v]) => typeof v !== "object" && String(v).length < MAX_TOOLTIP_VALUE_LENGTH)
+    .filter(([, v]) => (typeof v !== "object" || v === null) && String(v).length < MAX_TOOLTIP_VALUE_LENGTH)
     .slice(0, 6);
 
   return (
@@ -156,7 +157,7 @@ function TimeAxis({
 }) {
   const range = maxTime - minTime || 1;
   // Aim for ~5-8 ticks
-  const tickCount = Math.min(8, Math.max(2, Math.floor(width / 100)));
+  const tickCount = Math.min(8, Math.max(2, Math.floor(width / MIN_PIXELS_PER_TICK)));
   const ticks: number[] = [];
   for (let i = 0; i <= tickCount; i++) {
     ticks.push(minTime + (range * i) / tickCount);
@@ -330,14 +331,8 @@ export function GanttChart({ rows }: Props) {
                 const startPct =
                   ((seg.startTime - minTime) / range) * 100;
                 const end = seg.endTime ?? now;
-                const rawWidthPct = ((end - seg.startTime) / range) * 100;
+                const widthPct = ((end - seg.startTime) / range) * 100;
                 const isPoint = seg.endTime === seg.startTime;
-                const widthPx = isPoint
-                  ? POINT_EVENT_WIDTH
-                  : Math.max(
-                      (rawWidthPct / 100) * barAreaWidth,
-                      MIN_BAR_WIDTH
-                    );
                 const isRunning = seg.endTime === null;
 
                 return (
@@ -350,7 +345,7 @@ export function GanttChart({ rows }: Props) {
                       left: `${startPct}%`,
                       top: BAR_V_PADDING,
                       height: ROW_HEIGHT - BAR_V_PADDING * 2,
-                      width: isPoint ? POINT_EVENT_WIDTH : `${rawWidthPct}%`,
+                      width: isPoint ? POINT_EVENT_WIDTH : `${widthPct}%`,
                       minWidth: isPoint ? POINT_EVENT_WIDTH : MIN_BAR_WIDTH,
                       background: barColor(seg),
                       borderRadius: isPoint ? "50%" : 4,
