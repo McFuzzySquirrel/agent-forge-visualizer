@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { mkdir, access, writeFile, readFile, readdir, chmod } from "node:fs/promises";
+import { mkdir, access, writeFile, readFile, readdir, chmod, stat } from "node:fs/promises";
 import { constants } from "node:fs";
-import { resolve, join, basename } from "node:path";
+import { resolve, join, basename, relative } from "node:path";
 
 function fail(message: string): never {
   console.error(`bootstrap-existing-repo error: ${message}`);
@@ -11,13 +11,57 @@ function fail(message: string): never {
 function usage(): string {
   return [
     "Usage:",
-    "  npm run bootstrap:repo -- /absolute/path/to/target-repo",
+    "  npm run bootstrap:repo -- /absolute/path/to/target-repo [options]",
+    "",
+    "Options:",
+    "  --prefix <name>    Prefix for hook filenames (e.g. --prefix viz creates viz-session-start.sh)",
+    "  --create-hooks     Generate stub hook scripts in .github/hooks/ when none exist",
     "",
     "What this creates in target repo:",
     "  .visualizer/emit-event.sh",
     "  .visualizer/visualizer.config.json",
-    "  .visualizer/HOOK_INTEGRATION.md"
+    "  .visualizer/HOOK_INTEGRATION.md",
+    "",
+    "With --create-hooks, also creates stub scripts in .github/hooks/",
+    "that call the visualizer emitter for each lifecycle event."
   ].join("\n");
+}
+
+interface CliOptions {
+  targetRepo: string;
+  prefix?: string;
+  createHooks: boolean;
+}
+
+function parseCliArgs(argv: string[]): CliOptions | null {
+  const positional: string[] = [];
+  let prefix: string | undefined;
+  let createHooks = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--prefix") {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("--")) {
+        fail("--prefix requires a value (e.g. --prefix viz)");
+      }
+      prefix = value;
+      i += 1;
+    } else if (arg === "--create-hooks") {
+      createHooks = true;
+    } else if (arg === "-h" || arg === "--help") {
+      console.log(usage());
+      process.exit(0);
+    } else if (!arg.startsWith("--")) {
+      positional.push(arg);
+    }
+  }
+
+  if (positional.length === 0) {
+    return null;
+  }
+
+  return { targetRepo: positional[0], prefix, createHooks };
 }
 
 async function ensureExists(path: string): Promise<void> {
@@ -29,14 +73,14 @@ async function ensureExists(path: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const targetArg = process.argv[2];
-  if (!targetArg || targetArg === "-h" || targetArg === "--help") {
+  const options = parseCliArgs(process.argv.slice(2));
+  if (!options) {
     console.log(usage());
-    process.exit(targetArg ? 0 : 1);
+    process.exit(1);
   }
 
   const visualizerRoot = resolve(process.cwd());
-  const targetRepo = resolve(targetArg);
+  const targetRepo = resolve(options.targetRepo);
 
   await ensureExists(targetRepo);
 
@@ -86,6 +130,10 @@ npx tsx "$VISUALIZER_ROOT/scripts/emit-event-cli.ts" \
   --storePrompts "$STORE_PROMPTS"
 `;
 
+  const prefixNote = options.prefix
+    ? `\n## Naming Prefix\nHook scripts use the prefix \`${options.prefix}-\` (e.g. \`${options.prefix}-session-start.sh\`).\n`
+    : "";
+
   const guide = `# Visualizer Hook Integration
 
 This repo was bootstrapped for Copilot Agent Activity Visualizer.
@@ -94,7 +142,7 @@ This repo was bootstrapped for Copilot Agent Activity Visualizer.
 - .visualizer/emit-event.sh
 - .visualizer/visualizer.config.json
 - .visualizer/logs/events.jsonl (created on first emit)
-
+${prefixNote}
 ## Emit Command
 Use this in your automation/hooks:
 
@@ -116,6 +164,14 @@ SESSION_ID="run-$(date +%s)"
 sessionStart, sessionEnd, userPromptSubmitted, preToolUse, postToolUse,
 postToolUseFailure, subagentStart, subagentStop, agentStop, notification,
 errorOccurred
+
+## Hook Discovery
+The bootstrap script scans \`.github/hooks/\` and its subdirectories for shell
+scripts that match known lifecycle names. If your hooks live in a subfolder
+(e.g. \`.github/hooks/copilot/session-start.sh\`) they are discovered automatically.
+
+When a \`--prefix\` is used, filenames like \`<prefix>-session-start.sh\` are also
+matched (e.g. \`viz-session-start.sh\` with \`--prefix viz\`).
 
 ## Live Viewing
 1. Start the ingest service from the visualizer repo:
@@ -140,18 +196,29 @@ Start the ingest service later and replay from the JSONL file.
   console.log(`\nBootstrapped visualizer integration in: ${vizDir}`);
 
   // Auto-detect and wire hooks in .github/hooks/
-  await wireHooks(targetRepo);
+  await wireHooks(targetRepo, options.prefix, options.createHooks);
 }
 
 /**
- * Maps hook script filenames to their visualizer event type and a
+ * Maps canonical hook base filenames to their visualizer event type and a
  * function that builds the JSON payload from parsed input.
  *
- * Because every repo may differ, we match on the base filename (case-insensitive)
- * and append a best-effort emit block. The block is idempotent — skipped if
- * ".visualizer/emit-event.sh" already appears in the file.
+ * The matcher supports:
+ *   1. Exact match (case-insensitive) — e.g. session-start.sh
+ *   2. Prefix match — e.g. viz-session-start.sh with --prefix viz
+ *   3. Hooks in subdirectories — e.g. .github/hooks/copilot/session-start.sh
+ *
+ * The emit block is idempotent — skipped if ".visualizer/emit-event.sh"
+ * already appears in the file.
  */
-const HOOK_MAP: Record<string, { eventType: string; payloadSnippet: string; sessionSnippet: string }> = {
+
+interface HookMapping {
+  eventType: string;
+  payloadSnippet: string;
+  sessionSnippet: string;
+}
+
+const HOOK_MAP: Record<string, HookMapping> = {
   "session-start.sh": {
     eventType: "sessionStart",
     payloadSnippet: `$(jq -nc --arg source "\${SOURCE:-unknown}" '{"source":$source}' 2>/dev/null || echo '{}')`,
@@ -199,6 +266,40 @@ const HOOK_MAP: Record<string, { eventType: string; payloadSnippet: string; sess
   },
 };
 
+/**
+ * Canonical stub filenames — the hyphenated variants from HOOK_MAP.
+ * Derived from HOOK_MAP keys, keeping only hyphenated names (one per event type)
+ * to avoid generating duplicate stubs for both "session-start.sh" and "sessionstart.sh".
+ */
+const CANONICAL_HOOK_NAMES = Object.keys(HOOK_MAP).filter((name) => name.includes("-"));
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Try to match a filename against HOOK_MAP, optionally stripping a prefix.
+ * Returns the mapping if found, or undefined.
+ */
+export function matchHookFilename(filename: string, prefix?: string): HookMapping | undefined {
+  const lower = basename(filename).toLowerCase();
+
+  // Direct match first
+  const direct = HOOK_MAP[lower];
+  if (direct) return direct;
+
+  // Prefix match: strip "<prefix>-" from the start and re-check
+  if (prefix) {
+    const prefixPattern = new RegExp(`^${escapeRegExp(prefix.toLowerCase())}-`);
+    const stripped = lower.replace(prefixPattern, "");
+    if (stripped !== lower) {
+      return HOOK_MAP[stripped];
+    }
+  }
+
+  return undefined;
+}
+
 function buildEmitBlock(emitScriptRelPath: string, eventType: string, payloadSnippet: string, sessionSnippet: string): string {
   return [
     ``,
@@ -210,21 +311,127 @@ function buildEmitBlock(emitScriptRelPath: string, eventType: string, payloadSni
   ].join("\n");
 }
 
-async function wireHooks(targetRepo: string): Promise<void> {
+/** Recursively collect all .sh files under a directory. */
+async function findShellScripts(dir: string): Promise<{ relPath: string; absPath: string }[]> {
+  const results: { relPath: string; absPath: string }[] = [];
+
+  async function walk(currentDir: string, relBase: string): Promise<void> {
+    let entries: string[];
+    try {
+      entries = await readdir(currentDir);
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const absEntry = join(currentDir, entry);
+      const relEntry = relBase ? join(relBase, entry) : entry;
+      const info = await stat(absEntry);
+
+      if (info.isDirectory()) {
+        await walk(absEntry, relEntry);
+      } else if (info.isFile() && entry.endsWith(".sh")) {
+        results.push({ relPath: relEntry, absPath: absEntry });
+      }
+    }
+  }
+
+  await walk(dir, "");
+  return results;
+}
+
+function buildStubScript(eventType: string, payloadSnippet: string, sessionSnippet: string, emitScriptRelPath: string): string {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+# Stub hook generated by bootstrap-existing-repo.
+# Add your custom logic above the visualizer emit block below.
+
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---
+if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then
+  _VIZ_PAYLOAD=${payloadSnippet}
+  "\${REPO_ROOT}/${emitScriptRelPath}" ${eventType} "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true
+fi
+
+exit 0
+`;
+}
+
+async function createStubHooks(targetRepo: string, prefix?: string): Promise<number> {
+  const hooksDir = join(targetRepo, ".github", "hooks");
+  await mkdir(hooksDir, { recursive: true });
+
+  let created = 0;
+  for (const canonical of CANONICAL_HOOK_NAMES) {
+    const stubName = prefix ? `${prefix}-${canonical}` : canonical;
+    const stubPath = join(hooksDir, stubName);
+
+    // Don't overwrite existing files
+    try {
+      await access(stubPath, constants.F_OK);
+      console.log(`  EXISTS ${stubName} — not overwriting`);
+      continue;
+    } catch {
+      // File doesn't exist, proceed to create
+    }
+
+    const mapping = HOOK_MAP[canonical];
+    if (!mapping) continue;
+
+    const script = buildStubScript(
+      mapping.eventType,
+      mapping.payloadSnippet,
+      mapping.sessionSnippet,
+      ".visualizer/emit-event.sh"
+    );
+
+    await writeFile(stubPath, script, "utf8");
+    await chmod(stubPath, 0o755);
+    console.log(`  CREATE ${stubName} → ${mapping.eventType}`);
+    created += 1;
+  }
+
+  return created;
+}
+
+async function wireHooks(targetRepo: string, prefix?: string, createHooks?: boolean): Promise<void> {
   const hooksDir = join(targetRepo, ".github", "hooks");
 
-  let hookFiles: string[];
+  let hooksDirExists = true;
   try {
-    hookFiles = await readdir(hooksDir);
+    await access(hooksDir, constants.F_OK);
   } catch {
+    hooksDirExists = false;
+  }
+
+  // If no hooks directory and --create-hooks was requested, create stubs
+  if (!hooksDirExists) {
+    if (createHooks) {
+      console.log(`\nNo .github/hooks/ directory found — creating stub hooks:`);
+      const created = await createStubHooks(targetRepo, prefix);
+      console.log(`\nCreated ${created} stub hook scripts in ${hooksDir}`);
+      return;
+    }
     console.log("\nNo .github/hooks/ directory found — skipping hook wiring.");
+    console.log("Tip: re-run with --create-hooks to generate stub hooks automatically.");
     console.log("To wire manually, see .visualizer/HOOK_INTEGRATION.md");
     return;
   }
 
-  const shFiles = hookFiles.filter((f) => f.endsWith(".sh"));
+  // Recursively find all .sh files in hooks dir and subdirectories
+  const shFiles = await findShellScripts(hooksDir);
+
   if (shFiles.length === 0) {
+    if (createHooks) {
+      console.log(`\nNo .sh files found in .github/hooks/ — creating stub hooks:`);
+      const created = await createStubHooks(targetRepo, prefix);
+      console.log(`\nCreated ${created} stub hook scripts in ${hooksDir}`);
+      return;
+    }
     console.log("\nNo .sh files found in .github/hooks/ — skipping hook wiring.");
+    console.log("Tip: re-run with --create-hooks to generate stub hooks automatically.");
     return;
   }
 
@@ -232,20 +439,18 @@ async function wireHooks(targetRepo: string): Promise<void> {
   let wired = 0;
   let skipped = 0;
 
-  for (const filename of shFiles) {
-    const key = filename.toLowerCase();
-    const mapping = HOOK_MAP[key];
+  for (const { relPath, absPath } of shFiles) {
+    const mapping = matchHookFilename(relPath, prefix);
     if (!mapping) {
-      console.log(`  SKIP  ${filename} — no event type mapping (add manually if needed)`);
+      console.log(`  SKIP  ${relPath} — no event type mapping (add manually if needed)`);
       skipped += 1;
       continue;
     }
 
-    const hookPath = join(hooksDir, filename);
-    const content = await readFile(hookPath, "utf8");
+    const content = await readFile(absPath, "utf8");
 
     if (content.includes(".visualizer/emit-event.sh")) {
-      console.log(`  OK    ${filename} — already wired`);
+      console.log(`  OK    ${relPath} — already wired`);
       skipped += 1;
       continue;
     }
@@ -263,9 +468,48 @@ async function wireHooks(targetRepo: string): Promise<void> {
       ? content.replace(exitPattern, `${emitBlock}\n\nexit 0`)
       : content + emitBlock + "\n";
 
-    await writeFile(hookPath, updated, "utf8");
-    console.log(`  WIRED ${filename} → ${mapping.eventType}`);
+    await writeFile(absPath, updated, "utf8");
+    console.log(`  WIRED ${relPath} → ${mapping.eventType}`);
     wired += 1;
+  }
+
+  // If --create-hooks and nothing was wired, also create stubs for missing event types
+  if (createHooks) {
+    const coveredEvents = new Set<string>();
+    for (const { relPath } of shFiles) {
+      const m = matchHookFilename(relPath, prefix);
+      if (m) coveredEvents.add(m.eventType);
+    }
+    const missingCanonical = CANONICAL_HOOK_NAMES.filter(
+      (name) => !coveredEvents.has(HOOK_MAP[name].eventType)
+    );
+    if (missingCanonical.length > 0) {
+      console.log(`\nCreating stub hooks for uncovered event types:`);
+      for (const canonical of missingCanonical) {
+        const stubName = prefix ? `${prefix}-${canonical}` : canonical;
+        const stubPath = join(hooksDir, stubName);
+
+        try {
+          await access(stubPath, constants.F_OK);
+          console.log(`  EXISTS ${stubName} — not overwriting`);
+          continue;
+        } catch {
+          // File doesn't exist, proceed to create
+        }
+
+        const mapping = HOOK_MAP[canonical];
+        const script = buildStubScript(
+          mapping.eventType,
+          mapping.payloadSnippet,
+          mapping.sessionSnippet,
+          ".visualizer/emit-event.sh"
+        );
+        await writeFile(stubPath, script, "utf8");
+        await chmod(stubPath, 0o755);
+        console.log(`  CREATE ${stubName} → ${mapping.eventType}`);
+        wired += 1;
+      }
+    }
   }
 
   console.log(`\nHook wiring complete: ${wired} wired, ${skipped} skipped.`);
@@ -275,4 +519,7 @@ async function wireHooks(targetRepo: string): Promise<void> {
   console.log("  3) Run your agent workflow — events appear live at http://127.0.0.1:5173");
 }
 
-void main();
+/* istanbul ignore next -- entry guard */
+if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename ?? "")) {
+  void main();
+}
