@@ -17,6 +17,15 @@ const STATUS_COLORS: Record<LaneData["status"], string> = {
   subagent_running: "#a855f7",
 };
 
+const detailsStyle: React.CSSProperties = {
+  color: "#94a3b8",
+  fontSize: "0.8rem",
+  maxWidth: 200,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
 interface Props {
   lane: LaneData;
 }
@@ -66,10 +75,7 @@ export function LaneItem({ lane }: Props) {
         {STATUS_LABELS[lane.status]}
       </span>
       {lane.details && (
-        <span
-          aria-label="details"
-          style={{ color: "#94a3b8", fontSize: "0.8rem", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-        >
+        <span aria-label="details" style={detailsStyle}>
           {lane.details}
         </span>
       )}

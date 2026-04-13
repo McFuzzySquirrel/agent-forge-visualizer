@@ -78,8 +78,9 @@ function Tooltip({ data }: { data: TooltipData }) {
   };
 
   // Extract key payload fields (skip very long values)
+  const MAX_TOOLTIP_VALUE_LENGTH = 120;
   const detailEntries = Object.entries(segment.details)
-    .filter(([, v]) => typeof v !== "object" && String(v).length < 120)
+    .filter(([, v]) => typeof v !== "object" && String(v).length < MAX_TOOLTIP_VALUE_LENGTH)
     .slice(0, 6);
 
   return (
