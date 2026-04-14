@@ -114,7 +114,7 @@ export function reduceEvent(state: SessionState, event: EventEnvelope): SessionS
       return {
         ...next,
         visualization: "idle",
-        lastAgentName: event.payload.agentName ?? state.lastAgentName,
+        lastAgentName: event.payload.agentName || state.lastAgentName,
       };
 
     case "notification":

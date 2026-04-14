@@ -361,7 +361,7 @@ const HOOK_MAP: Record<string, HookMapping> = {
   },
   "agent-stop.sh": {
     eventType: "agentStop",
-    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-}" '{"agentName":$agent}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-copilot}" --arg reason "\${REASON:-}" --arg msg "\${MESSAGE:-}" '{"agentName":$agent,"reason":$reason,"message":$msg}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "error-occurred.sh": {
@@ -660,7 +660,7 @@ const PS1_PAYLOAD_MAP: Record<string, { payloadSnippet: string; sessionSnippet: 
   // override this with proper success/failure routing.
   postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success' } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } else { 'copilot' }); reason = $(if ($env:REASON) { $env:REASON } else { '' }); message = $(if ($env:MESSAGE) { $env:MESSAGE } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   errorOccurred:       { payloadSnippet: `(ConvertTo-Json @{ message = $(if ($env:MESSAGE) { $env:MESSAGE } else { 'unknown error' }); code = $(if ($env:CODE) { $env:CODE } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
 };
 
