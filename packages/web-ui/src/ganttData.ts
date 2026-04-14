@@ -62,6 +62,10 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
   const openTools = new Map<string, GanttSegment>();
   const openSubagents = new Map<string, GanttSegment>();
 
+  // Track idle gap starts for session-level idle visualization
+  let idleGapStart: number | null = null;
+  let idleGapSeq = 0;
+
   // Sort by timestamp then original index (stable)
   const sorted = [...events]
     .map((ev, idx) => ({ ev, idx }))
@@ -70,6 +74,26 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
       const tb = tsMs(b.ev.timestamp);
       return ta !== tb ? ta - tb : a.idx - b.idx;
     });
+
+  /**
+   * Close any open idle gap segment up to `endTime`, pushing it to session
+   * segments with a dimmed "idle" status.
+   */
+  function closeIdleGap(endTime: number): void {
+    if (idleGapStart !== null && endTime > idleGapStart) {
+      sessionSegments.push({
+        id: `idle-gap-${++idleGapSeq}`,
+        label: "Idle",
+        category: "session",
+        startTime: idleGapStart,
+        endTime,
+        status: "idle",
+        eventType: "idle",
+        details: {},
+      });
+    }
+    idleGapStart = null;
+  }
 
   for (const { ev } of sorted) {
     const payload = ev.payload as Record<string, unknown>;
@@ -90,9 +114,12 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
         };
         openSession = seg;
         sessionSegments.push(seg);
+        // Session starts in idle until first activity
+        idleGapStart = t;
         break;
       }
       case "sessionEnd": {
+        closeIdleGap(t);
         if (openSession) {
           openSession.endTime = t;
           openSession.status = "succeeded";
@@ -114,6 +141,7 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
 
       /* ---- Tools ---- */
       case "preToolUse": {
+        closeIdleGap(t);
         const name = toolNameFrom(payload);
         const rowKey = `tool:${name}`;
         const seg: GanttSegment = {
@@ -143,6 +171,8 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
           open.details = { ...open.details, ...payload };
           openTools.delete(rowKey);
         }
+        // Start idle gap after tool completes
+        idleGapStart = t;
         break;
       }
       case "postToolUseFailure": {
@@ -155,11 +185,14 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
           open.details = { ...open.details, ...payload };
           openTools.delete(rowKey);
         }
+        // Start idle gap after tool failure
+        idleGapStart = t;
         break;
       }
 
       /* ---- Subagents ---- */
       case "subagentStart": {
+        closeIdleGap(t);
         const name = agentNameFrom(payload);
         const rowKey = `subagent:${name}`;
         const seg: GanttSegment = {
@@ -189,6 +222,8 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
           open.details = { ...open.details, ...payload };
           openSubagents.delete(rowKey);
         }
+        // Start idle gap after subagent stops
+        idleGapStart = t;
         break;
       }
 
@@ -241,6 +276,10 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
           details: payload,
         };
         sessionSegments.push(seg);
+        // agentStop transitions to idle
+        if (ev.eventType === "agentStop") {
+          idleGapStart = t;
+        }
         break;
       }
     }

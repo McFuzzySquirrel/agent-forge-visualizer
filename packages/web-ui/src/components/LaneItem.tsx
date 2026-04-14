@@ -36,6 +36,7 @@ interface Props {
  */
 export function LaneItem({ lane }: Props) {
   const color = STATUS_COLORS[lane.status];
+  const isActive = lane.status === "running" || lane.status === "subagent_running";
 
   return (
     <div
@@ -57,7 +58,11 @@ export function LaneItem({ lane }: Props) {
           height: 10,
           borderRadius: "50%",
           background: color,
+          color,
           flexShrink: 0,
+          animation: isActive
+            ? "lane-dot-pulse 1.5s ease-in-out infinite"
+            : "none",
         }}
       />
       <span style={{ flex: 1, color: "#f1f5f9", fontSize: "0.9rem" }}>
