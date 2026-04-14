@@ -138,6 +138,7 @@ export function App() {
   const timelineSource = replayMode ? replayEvents : allEvents;
   const filteredEvents = applyFilter(timelineSource, filter);
   const ganttRows = useMemo(() => buildGanttData(filteredEvents), [filteredEvents]);
+  const sessionCompleted = displayedState.lifecycle === "completed";
 
   const handleSelectEvent = useCallback((event: EventEnvelope) => {
     setSelected({
@@ -225,7 +226,7 @@ export function App() {
         <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#94a3b8", fontWeight: 500 }}>
           Timeline
         </h2>
-        <GanttChart rows={ganttRows} />
+        <GanttChart rows={ganttRows} sessionCompleted={sessionCompleted} />
       </div>
 
       <div style={{ display: "flex", gap: "1.5rem" }}>

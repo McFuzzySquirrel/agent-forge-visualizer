@@ -30,13 +30,19 @@ single one of these in this project:
 | `sessionEnd` | The session wraps up | Duration, exit status |
 | `userPromptSubmitted` | The user sends a prompt | What the human asked for |
 | `preToolUse` | Right before a tool runs | Which tool, what arguments |
-| `postToolUse` | Tool finishes successfully | Duration, result status |
-| `postToolUseFailure` | Tool finishes with an error | What went wrong, how long it took |
-| `subagentStart` | A sub-agent spins up | Agent name, task description |
-| `subagentStop` | A sub-agent finishes | Clean exit or not |
+| `postToolUse` | Tool finishes (success or failure) | Duration, result status |
+| `subagentStop` | A sub-agent finishes | Agent name, clean exit or not |
 | `agentStop` | The main agent stops | Overall session conclusion |
-| `notification` | An informational notification fires | Status updates, completion notices |
 | `errorOccurred` | Something goes wrong | Error details for debugging |
+
+These are the **8 real Copilot CLI hook types**. The visualizer also supports
+additional *internal* event types that are synthesized from the hooks above:
+
+| Internal Event | How It's Produced | What It Represents |
+|----------------|-------------------|--------------------|
+| `postToolUseFailure` | Synthesized from `postToolUse` when `toolResult.resultType` is `"failure"` or `"denied"` | A tool that finished with an error |
+| `subagentStart` | Not currently triggered by any CLI hook | A sub-agent spinning up (reserved for future use) |
+| `notification` | Not currently triggered by any CLI hook | Informational notifications (reserved for future use) |
 
 > **Pro tip:** You don't need all of these. Start with `sessionStart`, `preToolUse`,
 > `postToolUse`, and `errorOccurred`. That alone gives you a surprisingly complete
@@ -174,7 +180,7 @@ declares every covered event type with its corresponding hook command:
 }
 ```
 
-*(Truncated for brevity — the real manifest lists all 11 event types.)*
+*(Truncated for brevity — the real manifest lists all 8 supported Copilot CLI hook types.)*
 
 **Why this matters:**
 

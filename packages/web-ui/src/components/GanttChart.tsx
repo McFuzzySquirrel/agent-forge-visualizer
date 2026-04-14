@@ -203,16 +203,18 @@ function TimeAxis({
 
 interface Props {
   rows: GanttRow[];
+  /** When true, the session has ended — stop animating running bars. */
+  sessionCompleted?: boolean;
 }
 
-export function GanttChart({ rows }: Props) {
+export function GanttChart({ rows, sessionCompleted }: Props) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [now, setNow] = useState(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
 
-  // Tick `now` forward while there are running segments
-  const hasRunning = rows.some((r) =>
+  // Tick `now` forward while there are running segments and session is active
+  const hasRunning = !sessionCompleted && rows.some((r) =>
     r.segments.some((s) => s.endTime === null)
   );
 

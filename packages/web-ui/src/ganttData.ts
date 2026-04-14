@@ -98,6 +98,17 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
           openSession.status = "succeeded";
           openSession = null;
         }
+        // Auto-close any still-open tools and subagents when session ends
+        for (const [key, seg] of openTools) {
+          seg.endTime = t;
+          seg.status = seg.status === "running" ? "succeeded" : seg.status;
+          openTools.delete(key);
+        }
+        for (const [key, seg] of openSubagents) {
+          seg.endTime = t;
+          seg.status = seg.status === "running" ? "succeeded" : seg.status;
+          openSubagents.delete(key);
+        }
         break;
       }
 
@@ -216,9 +227,12 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
       /* ---- agentStop, notification: add as session-level markers ---- */
       case "agentStop":
       case "notification": {
+        const agentLabel = ev.eventType === "agentStop" && payload?.agentName
+          ? `Agent Stop: ${payload.agentName as string}`
+          : ev.eventType === "notification" ? "Notification" : "Agent Stop";
         const seg: GanttSegment = {
           id: ev.eventId,
-          label: ev.eventType === "notification" ? "Notification" : "Agent Stop",
+          label: agentLabel,
           category: "session",
           startTime: t,
           endTime: t,

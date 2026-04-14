@@ -34,17 +34,31 @@ Each event record is a single JSON object.
 
 ## Event Types (MVP)
 
+### Copilot CLI Hook Types (8)
+
+These correspond to real Copilot CLI hooks that fire during agent sessions:
+
 1. `sessionStart`
 2. `sessionEnd`
 3. `userPromptSubmitted`
 4. `preToolUse`
 5. `postToolUse`
-6. `postToolUseFailure`
-7. `subagentStart`
-8. `subagentStop`
-9. `agentStop`
-10. `notification`
-11. `errorOccurred`
+6. `subagentStop`
+7. `agentStop`
+8. `errorOccurred`
+
+### Internal / Synthesized Event Types (3)
+
+These are valid event types in the schema but are NOT triggered directly by
+Copilot CLI hooks. They are synthesized from other hooks or reserved for
+future use:
+
+9. `postToolUseFailure` — synthesized from `postToolUse` when
+   `toolResult.resultType` is `"failure"` or `"denied"`
+10. `subagentStart` — reserved for future use; no CLI hook exists
+11. `notification` — reserved for future use; no CLI hook exists
+
+See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
 
 ## Payload Shapes
 
