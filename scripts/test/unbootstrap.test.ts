@@ -112,4 +112,55 @@ describe("removeBootstrapManifestEntries", () => {
     expect(result.changed).toBe(false);
     expect(result.removedEvents).toEqual([]);
   });
+
+  it("removes entries for new event types (postToolUseFailure, agentStop, notification, errorOccurred)", () => {
+    const manifest = {
+      version: 1,
+      hooks: {
+        postToolUseFailure: [
+          { type: "command", bash: "./.github/hooks/post-tool-use-failure.sh" },
+        ],
+        agentStop: [
+          { type: "command", bash: "./.github/hooks/agent-stop.sh" },
+        ],
+        notification: [
+          { type: "command", bash: "./.github/hooks/notification.sh" },
+        ],
+        errorOccurred: [
+          { type: "command", bash: "./.github/hooks/error-occurred.sh" },
+        ],
+      },
+    };
+
+    const result = removeBootstrapManifestEntries(manifest);
+    expect(result.changed).toBe(true);
+    expect(result.removedEvents).toEqual([
+      "postToolUseFailure",
+      "agentStop",
+      "notification",
+      "errorOccurred",
+    ]);
+    const hooks = result.updated.hooks as Record<string, unknown>;
+    expect(hooks.postToolUseFailure).toBeUndefined();
+    expect(hooks.agentStop).toBeUndefined();
+    expect(hooks.notification).toBeUndefined();
+    expect(hooks.errorOccurred).toBeUndefined();
+  });
+
+  it("removes prefixed entries for new event types", () => {
+    const manifest = {
+      hooks: {
+        postToolUseFailure: [
+          { type: "command", bash: "./.github/hooks/viz-post-tool-use-failure.sh" },
+        ],
+        errorOccurred: [
+          { type: "command", bash: "./.github/hooks/viz-error-occurred.sh" },
+        ],
+      },
+    };
+
+    const result = removeBootstrapManifestEntries(manifest, "viz");
+    expect(result.changed).toBe(true);
+    expect(result.removedEvents).toEqual(["postToolUseFailure", "errorOccurred"]);
+  });
 });

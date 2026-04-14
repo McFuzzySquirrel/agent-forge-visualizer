@@ -42,14 +42,44 @@ const HOOK_MAP: Record<string, HookMapping> = {
   "log-prompt.sh": { eventType: "userPromptSubmitted" },
   "pre-tool-use.sh": { eventType: "preToolUse" },
   "post-tool-use.sh": { eventType: "postToolUse" },
+  "post-tool-use-failure.sh": { eventType: "postToolUseFailure" },
+  "agent-stop.sh": { eventType: "agentStop" },
+  "notification.sh": { eventType: "notification" },
+  "error-occurred.sh": { eventType: "errorOccurred" },
 };
 
-const CANONICAL_HOOK_NAMES = Object.keys(HOOK_MAP).filter((name) => name.includes("-"));
+const CANONICAL_HOOK_NAMES = (() => {
+  const eventSeen = new Set<string>();
+  const hyphenated = Object.keys(HOOK_MAP).filter((name) => name.includes("-"));
+  const nonHyphenated = Object.keys(HOOK_MAP).filter((name) => !name.includes("-"));
+
+  const result: string[] = [];
+  for (const name of hyphenated) {
+    const eventType = HOOK_MAP[name].eventType;
+    if (!eventSeen.has(eventType)) {
+      eventSeen.add(eventType);
+      result.push(name);
+    }
+  }
+  for (const name of nonHyphenated) {
+    const eventType = HOOK_MAP[name].eventType;
+    if (!eventSeen.has(eventType)) {
+      eventSeen.add(eventType);
+      result.push(name);
+    }
+  }
+  return result;
+})();
 
 const EVENT_TO_CANONICAL_HOOK: Record<string, string> = CANONICAL_HOOK_NAMES.reduce<Record<string, string>>((acc, hookName) => {
   acc[HOOK_MAP[hookName].eventType] = hookName;
   return acc;
 }, {});
+
+/**
+ * Name of the dedicated visualizer hook manifest created by bootstrap.
+ */
+const VISUALIZER_MANIFEST_NAME = "visualizer-hooks.json";
 
 const STUB_SCRIPT_LINES = [
   "#!/usr/bin/env bash",
@@ -334,6 +364,15 @@ async function main(): Promise<void> {
     const manifests = await findJsonFiles(hooksDir);
     for (const { relPath, absPath } of manifests) {
       const manifestLabel = `.github/hooks/${relPath.replaceAll("\\", "/")}`;
+
+      // Delete the dedicated visualizer manifest entirely
+      if (basename(relPath) === VISUALIZER_MANIFEST_NAME) {
+        deletedStubs.push(manifestLabel);
+        if (options.apply) {
+          await rm(absPath, { force: true });
+        }
+        continue;
+      }
 
       let parsed: unknown;
       try {
