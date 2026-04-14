@@ -587,6 +587,7 @@ const STDIN_EXTRACTION_BLOCK_PS1 = [
   `$_vizStdin = try { $input | Out-String } catch { '{}' }`,
   `if (-not $_vizStdin) { $_vizStdin = '{}' }`,
   `$_vizJson = try { $_vizStdin | ConvertFrom-Json } catch { $null }`,
+  // Single-line function: avoids standalone `}` that would break the ps1BlockPattern regex in unbootstrap
   `function _vizField([string[]]$names) { if (-not $_vizJson) { return '' }; foreach ($n in $names) { $v = $_vizJson.PSObject.Properties[$n]; if ($v -and $v.Value) { return [string]$v.Value } }; return '' }`,
   `# Extract fields from stdin JSON into env vars (stdin fills unset vars)`,
   `if (-not $env:TOOL_NAME)              { $env:TOOL_NAME = _vizField 'tool_name','toolName' }`,
