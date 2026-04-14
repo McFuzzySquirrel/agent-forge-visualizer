@@ -65,7 +65,10 @@ const PayloadSchemas = {
     result: z.string().optional()
   }).catchall(z.unknown()),
   agentStop: z.object({
-    agentName: z.string().optional()
+    agentName: z.string().optional(),
+    reason: z.string().optional(),
+    message: z.string().optional(),
+    summary: z.string().optional()
   }).catchall(z.unknown()),
   notification: z.object({
     notificationType: z.string().min(1),

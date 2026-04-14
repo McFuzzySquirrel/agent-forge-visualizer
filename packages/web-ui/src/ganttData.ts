@@ -227,9 +227,12 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
       /* ---- agentStop, notification: add as session-level markers ---- */
       case "agentStop":
       case "notification": {
+        const agentLabel = ev.eventType === "agentStop" && payload?.agentName
+          ? `Agent Stop: ${payload.agentName as string}`
+          : ev.eventType === "notification" ? "Notification" : "Agent Stop";
         const seg: GanttSegment = {
           id: ev.eventId,
-          label: ev.eventType === "notification" ? "Notification" : "Agent Stop",
+          label: agentLabel,
           category: "session",
           startTime: t,
           endTime: t,
