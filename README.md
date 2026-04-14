@@ -81,7 +81,7 @@ Use `--create-hooks` to generate stub hook scripts automatically:
 npm run bootstrap:repo -- /path/to/target-repo --create-hooks
 ```
 
-This creates `.github/hooks/visualizer/` with scripts for every lifecycle event (session start/end, tool use, tool failure, subagent start/stop, agent stop, notification, error, etc.), each pre-wired to emit visualizer events. A `visualizer-hooks.json` manifest is also created inside the same subdirectory as the canonical registry of all captured event types.
+This creates `.github/hooks/visualizer/` with scripts for every Copilot CLI hook (session start/end, tool use, subagent stop, agent stop, error, etc.), each pre-wired to emit visualizer events. A `visualizer-hooks.json` manifest is also created inside the same subdirectory as the canonical registry of all captured event types.
 
 Generated subagent hooks now capture richer start metadata when the host integration provides it, including display name, description, task text, and summary/message fields. The generated stubs prefer `AGENT_NAME` and `SUBAGENT_NAME`, then fall back through display-name and task-description style variables before using `unknown`.
 
@@ -166,7 +166,7 @@ Print the supported hook event types from this repo:
 npx tsx scripts/configure-hooks.ts
 ```
 
-The `visualizer-hooks.json` manifest created during bootstrap is the canonical source of truth for which events the visualizer captures. It covers all 11 lifecycle event types.
+The `visualizer-hooks.json` manifest created during bootstrap is the canonical source of truth for which events the visualizer captures. It covers all 8 Copilot CLI hook types (3 additional event types — `subagentStart`, `postToolUseFailure`, and `notification` — are synthesized internally and do not have corresponding hooks).
 
 ## Package Layout
 
