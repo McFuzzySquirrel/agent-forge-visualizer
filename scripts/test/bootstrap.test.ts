@@ -75,14 +75,11 @@ describe("matchHookFilename", () => {
     const canonical = [
       ["session-start.sh", "sessionStart"],
       ["session-end.sh", "sessionEnd"],
-      ["subagent-start.sh", "subagentStart"],
       ["subagent-stop.sh", "subagentStop"],
       ["log-prompt.sh", "userPromptSubmitted"],
       ["pre-tool-use.sh", "preToolUse"],
       ["post-tool-use.sh", "postToolUse"],
-      ["post-tool-use-failure.sh", "postToolUseFailure"],
       ["agent-stop.sh", "agentStop"],
-      ["notification.sh", "notification"],
       ["error-occurred.sh", "errorOccurred"],
     ] as const;
 
@@ -97,14 +94,11 @@ describe("matchHookFilename", () => {
     const canonical = [
       ["session-start.ps1", "sessionStart"],
       ["session-end.ps1", "sessionEnd"],
-      ["subagent-start.ps1", "subagentStart"],
       ["subagent-stop.ps1", "subagentStop"],
       ["log-prompt.ps1", "userPromptSubmitted"],
       ["pre-tool-use.ps1", "preToolUse"],
       ["post-tool-use.ps1", "postToolUse"],
-      ["post-tool-use-failure.ps1", "postToolUseFailure"],
       ["agent-stop.ps1", "agentStop"],
-      ["notification.ps1", "notification"],
       ["error-occurred.ps1", "errorOccurred"],
     ] as const;
 
@@ -115,39 +109,21 @@ describe("matchHookFilename", () => {
     }
   });
 
-  it("uses resilient subagent-start fallbacks for agent metadata", () => {
-    const mapping = matchHookFilename("subagent-start.sh");
-
-    expect(mapping).toBeDefined();
-    expect(mapping?.payloadSnippet).toContain("AGENT_NAME");
-    expect(mapping?.payloadSnippet).toContain("SUBAGENT_NAME");
-    expect(mapping?.payloadSnippet).toContain("AGENT_DISPLAY_NAME");
-    expect(mapping?.payloadSnippet).toContain("SUBAGENT_DISPLAY_NAME");
-    expect(mapping?.payloadSnippet).toContain("AGENT_DESCRIPTION");
-    expect(mapping?.payloadSnippet).toContain("TASK_DESC");
-    expect(mapping?.payloadSnippet).toContain('"agentDescription":$description');
-    expect(mapping?.payloadSnippet).toContain('"summary":$message');
+  it("does not match unsupported hook names (subagentStart, postToolUseFailure, notification)", () => {
+    // These are internal event types, NOT real Copilot CLI hooks
+    expect(matchHookFilename("subagent-start.sh")).toBeUndefined();
+    expect(matchHookFilename("subagent-start.ps1")).toBeUndefined();
+    expect(matchHookFilename("post-tool-use-failure.sh")).toBeUndefined();
+    expect(matchHookFilename("post-tool-use-failure.ps1")).toBeUndefined();
+    expect(matchHookFilename("notification.sh")).toBeUndefined();
+    expect(matchHookFilename("notification.ps1")).toBeUndefined();
   });
 
   it("matches new event types with correct payload snippets", () => {
-    const failure = matchHookFilename("post-tool-use-failure.sh");
-    expect(failure).toBeDefined();
-    expect(failure?.eventType).toBe("postToolUseFailure");
-    expect(failure?.payloadSnippet).toContain("TOOL_NAME");
-    expect(failure?.payloadSnippet).toContain("ERROR_SUMMARY");
-    expect(failure?.payloadSnippet).toContain('"status":"failure"');
-
     const agentStop = matchHookFilename("agent-stop.sh");
     expect(agentStop).toBeDefined();
     expect(agentStop?.eventType).toBe("agentStop");
     expect(agentStop?.payloadSnippet).toContain("AGENT_NAME");
-
-    const notification = matchHookFilename("notification.sh");
-    expect(notification).toBeDefined();
-    expect(notification?.eventType).toBe("notification");
-    expect(notification?.payloadSnippet).toContain("NOTIFICATION_TYPE");
-    expect(notification?.payloadSnippet).toContain("TITLE");
-    expect(notification?.payloadSnippet).toContain("MESSAGE");
 
     const error = matchHookFilename("error-occurred.sh");
     expect(error).toBeDefined();
@@ -156,11 +132,15 @@ describe("matchHookFilename", () => {
     expect(error?.payloadSnippet).toContain("CODE");
   });
 
-  it("matches new event types with prefix", () => {
-    expect(matchHookFilename("viz-post-tool-use-failure.sh", "viz")?.eventType).toBe("postToolUseFailure");
+  it("matches supported event types with prefix", () => {
     expect(matchHookFilename("viz-agent-stop.sh", "viz")?.eventType).toBe("agentStop");
-    expect(matchHookFilename("viz-notification.sh", "viz")?.eventType).toBe("notification");
     expect(matchHookFilename("viz-error-occurred.sh", "viz")?.eventType).toBe("errorOccurred");
+  });
+
+  it("does not match unsupported event types with prefix", () => {
+    expect(matchHookFilename("viz-post-tool-use-failure.sh", "viz")).toBeUndefined();
+    expect(matchHookFilename("viz-notification.sh", "viz")).toBeUndefined();
+    expect(matchHookFilename("viz-subagent-start.sh", "viz")).toBeUndefined();
   });
 });
 
@@ -190,15 +170,15 @@ describe("updateEjsHooksManifest", () => {
 
     const { updated, addedEvents } = updateEjsHooksManifest(manifest, [
       "sessionStart",
-      "subagentStart",
+      "preToolUse",
       "subagentStop",
     ]);
 
-    expect(addedEvents).toEqual(["subagentStart"]);
+    expect(addedEvents).toEqual(["preToolUse"]);
     const hooks = updated.hooks as Record<string, unknown>;
-    const startCommands = hooks.subagentStart as Array<Record<string, unknown>>;
-    expect(startCommands[0]?.bash).toBe(`./.github/hooks/visualizer/subagent-start.sh`);
-    expect(startCommands[0]?.timeoutSec).toBe(10);
+    const toolCommands = hooks.preToolUse as Array<Record<string, unknown>>;
+    expect(toolCommands[0]?.bash).toBe(`./.github/hooks/visualizer/pre-tool-use.sh`);
+    expect(toolCommands[0]?.timeoutSec).toBe(10);
 
     const sessionCommands = hooks.sessionStart as Array<Record<string, unknown>>;
     expect(sessionCommands[0]?.bash).toBe("./.github/hooks/session-start.sh");
@@ -207,16 +187,16 @@ describe("updateEjsHooksManifest", () => {
   it("supports prefixed hook filenames", () => {
     const { updated, addedEvents } = updateEjsHooksManifest(
       { version: 1, hooks: {} },
-      ["sessionStart", "subagentStart"],
+      ["sessionStart", "preToolUse"],
       "viz"
     );
 
-    expect(addedEvents).toEqual(["sessionStart", "subagentStart"]);
+    expect(addedEvents).toEqual(["sessionStart", "preToolUse"]);
     const hooks = updated.hooks as Record<string, unknown>;
     const sessionCommands = hooks.sessionStart as Array<Record<string, unknown>>;
-    const subagentCommands = hooks.subagentStart as Array<Record<string, unknown>>;
+    const toolCommands = hooks.preToolUse as Array<Record<string, unknown>>;
     expect(sessionCommands[0]?.bash).toBe("./.github/hooks/visualizer/viz-session-start.sh");
-    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/visualizer/viz-subagent-start.sh");
+    expect(toolCommands[0]?.bash).toBe("./.github/hooks/visualizer/viz-pre-tool-use.sh");
   });
 
   it("initializes hooks object when manifest shape is incomplete", () => {
@@ -229,27 +209,24 @@ describe("updateEjsHooksManifest", () => {
   it("exports the generic updater alias", () => {
     const { updated, addedEvents } = updateHookManifest(
       { version: 1, hooks: {} },
-      ["subagentStart"]
+      ["preToolUse"]
     );
 
-    expect(addedEvents).toEqual(["subagentStart"]);
+    expect(addedEvents).toEqual(["preToolUse"]);
     const hooks = updated.hooks as Record<string, unknown>;
-    const subagentCommands = hooks.subagentStart as Array<Record<string, unknown>>;
-    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/visualizer/subagent-start.sh");
+    const toolCommands = hooks.preToolUse as Array<Record<string, unknown>>;
+    expect(toolCommands[0]?.bash).toBe("./.github/hooks/visualizer/pre-tool-use.sh");
   });
 
-  it("generates manifest commands for all 11 event types", () => {
+  it("generates manifest commands for all 8 supported Copilot CLI hook types", () => {
     const allEvents = [
       "sessionStart",
       "sessionEnd",
       "userPromptSubmitted",
       "preToolUse",
       "postToolUse",
-      "postToolUseFailure",
-      "subagentStart",
       "subagentStop",
       "agentStop",
-      "notification",
       "errorOccurred",
     ];
 
@@ -296,18 +273,15 @@ describe("updateEjsHooksManifest", () => {
     expect(toolCommands[0]?.powershell).toBe("./.github/hooks/visualizer/viz-pre-tool-use.ps1");
   });
 
-  it("generates powershell paths for all 11 event types", () => {
+  it("generates powershell paths for all 8 supported Copilot CLI hook types", () => {
     const allEvents = [
       "sessionStart",
       "sessionEnd",
       "userPromptSubmitted",
       "preToolUse",
       "postToolUse",
-      "postToolUseFailure",
-      "subagentStart",
       "subagentStop",
       "agentStop",
-      "notification",
       "errorOccurred",
     ];
 
@@ -323,30 +297,26 @@ describe("updateEjsHooksManifest", () => {
     }
   });
 
-  it("uses correct hook filenames for new event types", () => {
+  it("uses correct hook filenames for supported event types", () => {
     const { updated } = updateEjsHooksManifest(
       { version: 1, hooks: {} },
-      ["postToolUseFailure", "agentStop", "notification", "errorOccurred"]
+      ["agentStop", "errorOccurred"]
     );
 
     const hooks = updated.hooks as Record<string, unknown>;
-    expect((hooks.postToolUseFailure as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/post-tool-use-failure.sh");
     expect((hooks.agentStop as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/agent-stop.sh");
-    expect((hooks.notification as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/notification.sh");
     expect((hooks.errorOccurred as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/error-occurred.sh");
   });
 
-  it("uses correct prefixed filenames for new event types", () => {
+  it("uses correct prefixed filenames for supported event types", () => {
     const { updated } = updateEjsHooksManifest(
       { version: 1, hooks: {} },
-      ["postToolUseFailure", "agentStop", "notification", "errorOccurred"],
+      ["agentStop", "errorOccurred"],
       "viz"
     );
 
     const hooks = updated.hooks as Record<string, unknown>;
-    expect((hooks.postToolUseFailure as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-post-tool-use-failure.sh");
     expect((hooks.agentStop as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-agent-stop.sh");
-    expect((hooks.notification as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-notification.sh");
     expect((hooks.errorOccurred as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-error-occurred.sh");
   });
 });

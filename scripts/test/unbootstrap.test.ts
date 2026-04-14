@@ -271,16 +271,16 @@ describe("removeBootstrapManifestEntries", () => {
   it("supports prefixed hook paths", () => {
     const manifest = {
       hooks: {
-        subagentStart: [
-          { type: "command", bash: "./.github/hooks/visualizer/viz-subagent-start.sh" },
+        preToolUse: [
+          { type: "command", bash: "./.github/hooks/visualizer/viz-pre-tool-use.sh" },
         ],
       },
     };
 
     const result = removeBootstrapManifestEntries(manifest, "viz");
     expect(result.changed).toBe(true);
-    expect(result.removedEvents).toEqual(["subagentStart"]);
-    expect((result.updated.hooks as Record<string, unknown>).subagentStart).toBeUndefined();
+    expect(result.removedEvents).toEqual(["preToolUse"]);
+    expect((result.updated.hooks as Record<string, unknown>).preToolUse).toBeUndefined();
   });
 
   it("returns unchanged for incompatible manifest shapes", () => {

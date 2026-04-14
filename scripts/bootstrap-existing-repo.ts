@@ -295,8 +295,24 @@ const SUBAGENT_DISPLAY_NAME_FALLBACK = "\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPL
 const SUBAGENT_DETAIL_FALLBACK = "\${AGENT_DESCRIPTION:-\${SUBAGENT_DESCRIPTION:-\${TASK_DESC:-\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}}}}";
 const SUBAGENT_MESSAGE_FALLBACK = "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${TASK_DESC:-}}}}";
 
+/**
+ * Copilot CLI only supports 8 hook types. The following 3 event types are NOT
+ * Copilot CLI hooks and must NOT be registered in hook manifests or have stub
+ * scripts generated for them:
+ *
+ *   - subagentStart      — no CLI hook exists; there is no way to trigger it
+ *   - postToolUseFailure — synthesized from postToolUse when toolResult.resultType
+ *                          is "failure" or "denied" (handled by the conditional
+ *                          emit block in post-tool-use.sh/ps1)
+ *   - notification       — no CLI hook exists; there is no way to trigger it
+ *
+ * These event types are kept in the event schema and state machine as valid
+ * *internal* event types that can be produced by synthesizing or replaying.
+ *
+ * See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
+ */
 const HOOK_MAP: Record<string, HookMapping> = {
-  // ── .sh (bash) entries ────────────────────────────────────────────────
+  // ── .sh (bash) entries — only real Copilot CLI hook types ──────────────
   "session-start.sh": {
     eventType: "sessionStart",
     payloadSnippet: `$(jq -nc --arg source "\${SOURCE:-unknown}" '{"source":$source}' 2>/dev/null || echo '{}')`,
@@ -322,11 +338,6 @@ const HOOK_MAP: Record<string, HookMapping> = {
     payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-}}}}" '{"agentName":$agent,"taskDescription":$task,"message":$message,"summary":$message,"result":$message}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
-  "subagent-start.sh": {
-    eventType: "subagentStart",
-    payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg display "${SUBAGENT_DISPLAY_NAME_FALLBACK}" --arg description "${SUBAGENT_DETAIL_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "${SUBAGENT_MESSAGE_FALLBACK}" '{"agentName":$agent,"agentDisplayName":$display,"agentDescription":$description,"taskDescription":$task,"message":$message,"summary":$message}' 2>/dev/null || echo '{}')`,
-    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
-  },
   "log-prompt.sh": {
     eventType: "userPromptSubmitted",
     payloadSnippet: `$(jq -nc --arg prompt "\${PROMPT:-}" '{"prompt":$prompt}' 2>/dev/null || echo '{}')`,
@@ -342,19 +353,9 @@ const HOOK_MAP: Record<string, HookMapping> = {
     payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
-  "post-tool-use-failure.sh": {
-    eventType: "postToolUseFailure",
-    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg errorSummary "\${ERROR_SUMMARY:-}" '{"toolName":$tool,"status":"failure","errorSummary":$errorSummary}' 2>/dev/null || echo '{}')`,
-    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
-  },
   "agent-stop.sh": {
     eventType: "agentStop",
     payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-}" '{"agentName":$agent}' 2>/dev/null || echo '{}')`,
-    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
-  },
-  "notification.sh": {
-    eventType: "notification",
-    payloadSnippet: `$(jq -nc --arg notificationType "\${NOTIFICATION_TYPE:-info}" --arg title "\${TITLE:-notification}" --arg message "\${MESSAGE:-}" '{"notificationType":$notificationType,"title":$title,"message":$message}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "error-occurred.sh": {
@@ -363,19 +364,16 @@ const HOOK_MAP: Record<string, HookMapping> = {
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
 
-  // ── .ps1 (PowerShell) entries ─────────────────────────────────────────
+  // ── .ps1 (PowerShell) entries — only real Copilot CLI hook types ──────
   "session-start.ps1": { eventType: "sessionStart", payloadSnippet: "", sessionSnippet: "" },
   "sessionstart.ps1":  { eventType: "sessionStart", payloadSnippet: "", sessionSnippet: "" },
   "session-end.ps1":   { eventType: "sessionEnd", payloadSnippet: "", sessionSnippet: "" },
   "sessionend.ps1":    { eventType: "sessionEnd", payloadSnippet: "", sessionSnippet: "" },
   "subagent-stop.ps1": { eventType: "subagentStop", payloadSnippet: "", sessionSnippet: "" },
-  "subagent-start.ps1":{ eventType: "subagentStart", payloadSnippet: "", sessionSnippet: "" },
   "log-prompt.ps1":    { eventType: "userPromptSubmitted", payloadSnippet: "", sessionSnippet: "" },
   "pre-tool-use.ps1":  { eventType: "preToolUse", payloadSnippet: "", sessionSnippet: "" },
   "post-tool-use.ps1": { eventType: "postToolUse", payloadSnippet: "", sessionSnippet: "" },
-  "post-tool-use-failure.ps1": { eventType: "postToolUseFailure", payloadSnippet: "", sessionSnippet: "" },
   "agent-stop.ps1":    { eventType: "agentStop", payloadSnippet: "", sessionSnippet: "" },
-  "notification.ps1":  { eventType: "notification", payloadSnippet: "", sessionSnippet: "" },
   "error-occurred.ps1":{ eventType: "errorOccurred", payloadSnippet: "", sessionSnippet: "" },
 };
 
@@ -421,11 +419,8 @@ const DEFAULT_TIMEOUT_BY_EVENT: Record<string, number> = {
   userPromptSubmitted: 5,
   preToolUse: 10,
   postToolUse: 10,
-  postToolUseFailure: 10,
-  subagentStart: 10,
   subagentStop: 10,
   agentStop: 10,
-  notification: 5,
   errorOccurred: 10,
 };
 
@@ -647,18 +642,16 @@ const STDIN_EXTRACTION_BLOCK_PS1 = [
   `if (-not $env:CODE)                   { $env:CODE = _vizField 'code','error_code' }`,
 ].join("\n");
 
-// ── PowerShell payload snippets ───────────────────────────────────────────
+// ── PowerShell payload snippets — only real Copilot CLI hook types ─────
 const PS1_PAYLOAD_MAP: Record<string, { payloadSnippet: string; sessionSnippet: string }> = {
   sessionStart:        { payloadSnippet: `(ConvertTo-Json @{ source = if ($env:SOURCE) { $env:SOURCE } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   sessionEnd:          { payloadSnippet: `(ConvertTo-Json @{ reason = if ($env:REASON) { $env:REASON } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   subagentStop:        { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }; taskDescription = if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }; message = if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  subagentStart:       { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }; agentDisplayName = if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { 'unknown' }; taskDescription = if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }; message = if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   userPromptSubmitted: { payloadSnippet: `(ConvertTo-Json @{ prompt = if ($env:PROMPT) { $env:PROMPT } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   preToolUse:          { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  notification:        { payloadSnippet: `(ConvertTo-Json @{ notificationType = if ($env:NOTIFICATION_TYPE) { $env:NOTIFICATION_TYPE } else { 'info' }; title = if ($env:TITLE) { $env:TITLE } else { 'notification' }; message = if ($env:MESSAGE) { $env:MESSAGE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   errorOccurred:       { payloadSnippet: `(ConvertTo-Json @{ message = if ($env:MESSAGE) { $env:MESSAGE } else { 'unknown error' }; code = if ($env:CODE) { $env:CODE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
 };
 
@@ -1191,7 +1184,7 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
 
   if (finalCoveredEvents.size === 0 && !createHooks) {
     console.log("\n⚠️  No hook scripts matched any known lifecycle event type.");
-    console.log("Tip: re-run with --create-hooks to generate stub hooks for all 11 event types.");
+    console.log("Tip: re-run with --create-hooks to generate stub hooks for all 8 supported Copilot CLI hook types.");
   }
 
   await syncHookManifests(targetRepo, finalCoveredEvents, prefix);

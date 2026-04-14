@@ -7,6 +7,15 @@
  * During bootstrap, these hooks are also written to .github/hooks/visualizer/visualizer-hooks.json
  * in the target repo — that manifest is the canonical source of truth for which
  * events the visualizer captures at runtime.
+ *
+ * Only real Copilot CLI hook types are listed here. The following event types
+ * are NOT Copilot CLI hooks and are instead synthesized internally:
+ *   - subagentStart      — no CLI hook; no way to trigger it
+ *   - postToolUseFailure — synthesized from postToolUse when toolResult.resultType
+ *                          is "failure" or "denied"
+ *   - notification       — no CLI hook; no way to trigger it
+ *
+ * See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
  */
 const hooks = [
   "sessionStart",
@@ -14,11 +23,8 @@ const hooks = [
   "userPromptSubmitted",
   "preToolUse",
   "postToolUse",
-  "postToolUseFailure",
-  "subagentStart",
   "subagentStop",
   "agentStop",
-  "notification",
   "errorOccurred"
 ];
 
