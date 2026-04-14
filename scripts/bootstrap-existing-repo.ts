@@ -339,7 +339,7 @@ const HOOK_MAP: Record<string, HookMapping> = {
   },
   "post-tool-use.sh": {
     eventType: "postToolUse",
-    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg status "\${STATUS:-unknown}" '{"toolName":$tool,"status":$status}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "post-tool-use-failure.sh": {
@@ -550,12 +550,13 @@ const STDIN_EXTRACTION_BLOCK = [
   `: "\${SUBAGENT_DESCRIPTION:=$(_vjq '.agent_description // .agentDescription // .description // empty')}"`,
   `: "\${TASK_DESC:=$(_vjq '.task_description // .taskDescription // .task // empty')}"`,
   `: "\${AGENT_MESSAGE:=$(_vjq '.message // empty')}"`,
-  `: "\${MESSAGE:=$(_vjq '.message // empty')}"`,
+  `: "\${MESSAGE:=$(_vjq '.error.message // .message // empty')}"`,
   `: "\${SUMMARY:=$(_vjq '.summary // empty')}"`,
   `: "\${RESULT:=$(_vjq '.result // empty')}"`,
   `: "\${REASON:=$(_vjq '.reason // empty')}"`,
-  `: "\${STATUS:=$(_vjq '.status // .tool_status // empty')}"`,
-  `: "\${ERROR_SUMMARY:=$(_vjq '.error_summary // .errorSummary // .error // empty')}"`,
+  `: "\${STATUS:=$(_vjq '.toolResult.resultType // .status // .tool_status // empty')}"`,
+  `: "\${ERROR_SUMMARY:=$(_vjq '.error.message // .error_summary // .errorSummary // empty')}"`,
+  `: "\${TOOL_ARGS:=$(_vjq '.toolArgs // empty')}"`,
   `: "\${SOURCE:=$(_vjq '.source // empty')}"`,
   `: "\${PROMPT:=$(_vjq '.prompt // .user_prompt // empty')}"`,
   `: "\${NOTIFICATION_TYPE:=$(_vjq '.notification_type // .notificationType // empty')}"`,
@@ -564,6 +565,13 @@ const STDIN_EXTRACTION_BLOCK = [
 ].join("\n");
 
 function buildEmitBlock(emitScriptRelPath: string, eventType: string, payloadSnippet: string, sessionSnippet: string): string {
+  // For postToolUse, generate a conditional block that routes to postToolUseFailure
+  // when the Copilot CLI reports a failure result. The Copilot CLI fires a single
+  // postToolUse hook for both success and failure — .toolResult.resultType carries
+  // the actual outcome.
+  if (eventType === "postToolUse") {
+    return buildEmitBlockPostToolUse(emitScriptRelPath, sessionSnippet);
+  }
   return [
     ``,
     `# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---`,
@@ -571,6 +579,29 @@ function buildEmitBlock(emitScriptRelPath: string, eventType: string, payloadSni
     `if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then`,
     `  _VIZ_PAYLOAD=${payloadSnippet}`,
     `  "\${REPO_ROOT}/${emitScriptRelPath}" ${eventType} "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true`,
+    `fi`,
+  ].join("\n");
+}
+
+/**
+ * Conditional emit block for postToolUse hooks. Copilot CLI uses a single
+ * postToolUse hook for both success and failure. This block checks
+ * $STATUS (extracted from .toolResult.resultType) and routes to the correct
+ * visualizer event type.
+ */
+function buildEmitBlockPostToolUse(emitScriptRelPath: string, sessionSnippet: string): string {
+  return [
+    ``,
+    `# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---`,
+    STDIN_EXTRACTION_BLOCK,
+    `if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then`,
+    `  if [ "\${STATUS}" = "failure" ] || [ "\${STATUS}" = "denied" ]; then`,
+    `    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg err "\${ERROR_SUMMARY:-}" '{"toolName":$tool,"status":"failure","errorSummary":$err}' 2>/dev/null || echo '{}')`,
+    `    "\${REPO_ROOT}/${emitScriptRelPath}" postToolUseFailure "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true`,
+    `  else`,
+    `    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')`,
+    `    "\${REPO_ROOT}/${emitScriptRelPath}" postToolUse "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true`,
+    `  fi`,
     `fi`,
   ].join("\n");
 }
@@ -589,6 +620,8 @@ const STDIN_EXTRACTION_BLOCK_PS1 = [
   `$_vizJson = try { $_vizStdin | ConvertFrom-Json } catch { $null }`,
   // Single-line function: avoids standalone `}` that would break the ps1BlockPattern regex in unbootstrap
   `function _vizField([string[]]$names) { if (-not $_vizJson) { return '' }; foreach ($n in $names) { $v = $_vizJson.PSObject.Properties[$n]; if ($v -and $v.Value) { return [string]$v.Value } }; return '' }`,
+  // Single-line helper for nested property access (e.g. "toolResult.resultType")
+  `function _vizNested([string]$path) { if (-not $_vizJson) { return '' }; $parts = $path -split '\\.'; $cur = $_vizJson; foreach ($p in $parts) { if (-not $cur) { return '' }; $v = $cur.PSObject.Properties[$p]; if (-not $v) { return '' }; $cur = $v.Value }; if ($cur -is [string]) { return $cur } elseif ($cur) { return [string]$cur } else { return '' } }`,
   `# Extract fields from stdin JSON into env vars (stdin fills unset vars)`,
   `if (-not $env:TOOL_NAME)              { $env:TOOL_NAME = _vizField 'tool_name','toolName' }`,
   `if (-not $env:SESSION_ID)             { $env:SESSION_ID = _vizField 'session_id','sessionId' }`,
@@ -600,12 +633,13 @@ const STDIN_EXTRACTION_BLOCK_PS1 = [
   `if (-not $env:SUBAGENT_DESCRIPTION)   { $env:SUBAGENT_DESCRIPTION = _vizField 'agent_description','agentDescription','description' }`,
   `if (-not $env:TASK_DESC)              { $env:TASK_DESC = _vizField 'task_description','taskDescription','task' }`,
   `if (-not $env:AGENT_MESSAGE)          { $env:AGENT_MESSAGE = _vizField 'message' }`,
-  `if (-not $env:MESSAGE)                { $env:MESSAGE = _vizField 'message' }`,
+  `if (-not $env:MESSAGE)                { $v = _vizNested 'error.message'; if ($v) { $env:MESSAGE = $v } else { $env:MESSAGE = _vizField 'message' } }`,
   `if (-not $env:SUMMARY)                { $env:SUMMARY = _vizField 'summary' }`,
   `if (-not $env:RESULT)                 { $env:RESULT = _vizField 'result' }`,
   `if (-not $env:REASON)                 { $env:REASON = _vizField 'reason' }`,
-  `if (-not $env:STATUS)                 { $env:STATUS = _vizField 'status','tool_status' }`,
-  `if (-not $env:ERROR_SUMMARY)          { $env:ERROR_SUMMARY = _vizField 'error_summary','errorSummary','error' }`,
+  `if (-not $env:STATUS)                 { $v = _vizNested 'toolResult.resultType'; if ($v) { $env:STATUS = $v } else { $env:STATUS = _vizField 'status','tool_status' } }`,
+  `if (-not $env:ERROR_SUMMARY)          { $v = _vizNested 'error.message'; if ($v) { $env:ERROR_SUMMARY = $v } else { $env:ERROR_SUMMARY = _vizField 'error_summary','errorSummary' } }`,
+  `if (-not $env:TOOL_ARGS)              { $env:TOOL_ARGS = _vizField 'toolArgs' }`,
   `if (-not $env:SOURCE)                 { $env:SOURCE = _vizField 'source' }`,
   `if (-not $env:PROMPT)                 { $env:PROMPT = _vizField 'prompt','user_prompt' }`,
   `if (-not $env:NOTIFICATION_TYPE)      { $env:NOTIFICATION_TYPE = _vizField 'notification_type','notificationType' }`,
@@ -621,7 +655,7 @@ const PS1_PAYLOAD_MAP: Record<string, { payloadSnippet: string; sessionSnippet: 
   subagentStart:       { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }; agentDisplayName = if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { 'unknown' }; taskDescription = if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }; message = if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   userPromptSubmitted: { payloadSnippet: `(ConvertTo-Json @{ prompt = if ($env:PROMPT) { $env:PROMPT } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   preToolUse:          { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = if ($env:STATUS) { $env:STATUS } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   notification:        { payloadSnippet: `(ConvertTo-Json @{ notificationType = if ($env:NOTIFICATION_TYPE) { $env:NOTIFICATION_TYPE } else { 'info' }; title = if ($env:TITLE) { $env:TITLE } else { 'notification' }; message = if ($env:MESSAGE) { $env:MESSAGE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
@@ -629,6 +663,11 @@ const PS1_PAYLOAD_MAP: Record<string, { payloadSnippet: string; sessionSnippet: 
 };
 
 function buildEmitBlockPs1(emitScriptRelPath: string, eventType: string): string {
+  // For postToolUse, generate a conditional block that routes to postToolUseFailure
+  // when the Copilot CLI reports a failure result.
+  if (eventType === "postToolUse") {
+    return buildEmitBlockPs1PostToolUse(emitScriptRelPath);
+  }
   const ps1Payload = PS1_PAYLOAD_MAP[eventType];
   const payloadExpr = ps1Payload?.payloadSnippet ?? "'{}'";
   const sessionExpr = ps1Payload?.sessionSnippet ?? '"run-$PID"';
@@ -641,6 +680,27 @@ function buildEmitBlockPs1(emitScriptRelPath: string, eventType: string): string
     `  try {`,
     `    $_vizPayload = ${payloadExpr}`,
     `    & $_vizEmitScript -EventType "${eventType}" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
+    `  } catch { }`,
+    `}`,
+  ].join("\n");
+}
+
+function buildEmitBlockPs1PostToolUse(emitScriptRelPath: string): string {
+  const sessionExpr = PS1_PAYLOAD_MAP.postToolUse?.sessionSnippet ?? '"run-$PID"';
+  return [
+    ``,
+    `# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---`,
+    STDIN_EXTRACTION_BLOCK_PS1,
+    `$_vizEmitScript = Join-Path $RepoRoot "${emitScriptRelPath}"`,
+    `if (Test-Path $_vizEmitScript) {`,
+    `  try {`,
+    `    if ($env:STATUS -eq 'failure' -or $env:STATUS -eq 'denied') {`,
+    `      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)`,
+    `      & $_vizEmitScript -EventType "postToolUseFailure" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
+    `    } else {`,
+    `      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)`,
+    `      & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
+    `    }`,
     `  } catch { }`,
     `}`,
   ].join("\n");
@@ -676,6 +736,11 @@ async function findHookScripts(dir: string): Promise<{ relPath: string; absPath:
 }
 
 function buildStubScript(eventType: string, payloadSnippet: string, sessionSnippet: string, emitScriptRelPath: string): string {
+  // For postToolUse, generate a conditional stub that routes to postToolUseFailure
+  // when the Copilot CLI reports a failure result.
+  if (eventType === "postToolUse") {
+    return buildStubScriptPostToolUse(sessionSnippet, emitScriptRelPath);
+  }
   return `#!/usr/bin/env bash
 set -euo pipefail
 # Stub hook generated by bootstrap-existing-repo.
@@ -697,7 +762,40 @@ exit 0
 `;
 }
 
+function buildStubScriptPostToolUse(sessionSnippet: string, emitScriptRelPath: string): string {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+# Stub hook generated by bootstrap-existing-repo.
+# Copilot CLI passes hook context as JSON on stdin.
+# The Copilot CLI fires a single postToolUse hook for both success and failure.
+# This stub routes to the correct visualizer event type based on toolResult.resultType.
+
+SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+${STDIN_EXTRACTION_BLOCK}
+
+# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---
+if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then
+  if [ "\${STATUS}" = "failure" ] || [ "\${STATUS}" = "denied" ]; then
+    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg err "\${ERROR_SUMMARY:-}" '{"toolName":$tool,"status":"failure","errorSummary":$err}' 2>/dev/null || echo '{}')
+    "\${REPO_ROOT}/${emitScriptRelPath}" postToolUseFailure "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true
+  else
+    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')
+    "\${REPO_ROOT}/${emitScriptRelPath}" postToolUse "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true
+  fi
+fi
+
+exit 0
+`;
+}
+
 function buildStubScriptPs1(eventType: string, emitScriptRelPath: string): string {
+  // For postToolUse, generate a conditional stub that routes to postToolUseFailure
+  // when the Copilot CLI reports a failure result.
+  if (eventType === "postToolUse") {
+    return buildStubScriptPs1PostToolUse(emitScriptRelPath);
+  }
   const ps1Payload = PS1_PAYLOAD_MAP[eventType];
   const payloadExpr = ps1Payload?.payloadSnippet ?? "'{}'";
   const sessionExpr = ps1Payload?.sessionSnippet ?? '"run-$PID"';
@@ -717,6 +815,37 @@ if (Test-Path $_vizEmitScript) {
   try {
     $_vizPayload = ${payloadExpr}
     & $_vizEmitScript -EventType "${eventType}" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
+  } catch { }
+}
+
+exit 0
+`;
+}
+
+function buildStubScriptPs1PostToolUse(emitScriptRelPath: string): string {
+  const sessionExpr = PS1_PAYLOAD_MAP.postToolUse?.sessionSnippet ?? '"run-$PID"';
+  return `# Stub hook generated by bootstrap-existing-repo.
+# Copilot CLI passes hook context as JSON on stdin.
+# The Copilot CLI fires a single postToolUse hook for both success and failure.
+# This stub routes to the correct visualizer event type based on toolResult.resultType.
+$ErrorActionPreference = "Stop"
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $ScriptDir ".." ".." "..")).Path
+
+${STDIN_EXTRACTION_BLOCK_PS1}
+
+# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---
+$_vizEmitScript = Join-Path $RepoRoot "${emitScriptRelPath}"
+if (Test-Path $_vizEmitScript) {
+  try {
+    if ($env:STATUS -eq 'failure' -or $env:STATUS -eq 'denied') {
+      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)
+      & $_vizEmitScript -EventType "postToolUseFailure" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
+    } else {
+      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)
+      & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
+    }
   } catch { }
 }
 
