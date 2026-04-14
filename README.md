@@ -18,8 +18,12 @@ The project is complete for the planned MVP scope:
 - Canonical event schema with validation and malformed-record rejection
 - Hook emitter with JSONL persistence and optional HTTP event forwarding
 - Deterministic state machine with rebuild-from-log support
-- Live board UI with lane mapping and event inspector
-- Replay mode with timeline scrubbing, speed controls, and first-failure jump
+- Live board UI with lane mapping, event inspector, and idle-aware Gantt chart
+- Idle gap visualization — dashed segments on the Gantt timeline show periods between tool invocations
+- Pulsing lane status dots for running and subagent-running states
+- Event list auto-scroll with user-scroll-override detection
+- Replay mode with timeline scrubbing, speed controls, first-failure jump, and header badge
+- Bulk filter controls (Select All / Clear All) for event type checkboxes
 - Redaction and retention controls with safe defaults
 - Existing-repo bootstrap with automatic hook wiring for common lifecycle scripts
 
@@ -190,3 +194,4 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - Progress tracker: `docs/PROGRESS.md`
 - Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
 - Learning guide: `docs/hooked-on-hooks.md` — a practical guide to Copilot CLI hooks, patterns, and best practices
+- Architecture decisions: `docs/adr/` — ADRs covering packaging, metadata, manifests, hook isolation, and UI polish

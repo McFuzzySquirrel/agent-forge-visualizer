@@ -7,7 +7,32 @@
 **Status**: Complete  
 **Last Updated**: 2026-04-14
 
-All five planned features are complete and validated locally. Integration tooling (bootstrap/unbootstrap) has been added post-MVP.
+All five planned features are complete and validated locally. Integration tooling (bootstrap/unbootstrap) has been added post-MVP. Live board UI polish has been applied.
+
+## UI Improvements (Post-MVP)
+
+### Implemented Deliverables
+
+- Idle-aware Gantt animation — running bars stop pulsing and dim when visualization state is idle.
+- Idle gap visualization — dashed segments on the session Gantt row show periods between tool/subagent activity.
+- Session lane lifecycle override — completed sessions show "Succeeded," failed sessions show "Error."
+- Lane dot pulse animation — running and subagent-running status dots pulse with a scale/glow effect.
+- Event list auto-scroll — new events scroll into view automatically unless the user has scrolled up.
+- Filter bulk actions — "Select All" and "Clear All" buttons above event type checkboxes.
+- Replay mode header badge — `🔄 Replay Mode` indicator in the header when replay is active.
+- Inspector spacing — `dd` elements now have bottom margin for readability.
+
+### Files Added/Updated
+
+- packages/web-ui/src/App.tsx
+- packages/web-ui/src/components/GanttChart.tsx
+- packages/web-ui/src/components/FilterControls.tsx
+- packages/web-ui/src/components/LaneItem.tsx
+- packages/web-ui/src/ganttData.ts
+- packages/web-ui/src/stateMapping.ts
+- packages/web-ui/src/theme.css
+- packages/web-ui/test/stateMapping.test.ts
+- docs/adr/005-idle-aware-gantt-and-ui-polish.md
 
 ## Integration Tooling (Post-MVP)
 
