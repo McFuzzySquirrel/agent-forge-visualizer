@@ -154,14 +154,14 @@ describe("mapStateToLanes: LIVE-FR-01 (session + activity lanes)", () => {
     expect(lanes.some((l) => l.id === "subagent")).toBe(false);
   });
 
-  it("after sessionEnd, session lane shows idle with lifecycle completed", () => {
+  it("after sessionEnd, session lane shows succeeded with lifecycle completed", () => {
     const state = applyEvents([
       makeEvent("sessionStart", {}),
       makeEvent("sessionEnd", {})
     ]);
     const lanes = mapStateToLanes(state);
 
-    expect(lanes[0]?.status).toBe("idle");
+    expect(lanes[0]?.status).toBe("succeeded");
     expect(lanes[0]?.details).toBe("completed");
   });
 

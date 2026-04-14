@@ -33,6 +33,22 @@ export function FilterControls({ filter, onChange }: Props) {
 
       <fieldset>
         <legend>Event Types</legend>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+          <button
+            type="button"
+            onClick={() => onChange({ ...filter, eventTypes: [...EVENT_TYPES] })}
+            style={{ fontSize: "0.78rem", padding: "0.2rem 0.5rem" }}
+          >
+            Select All
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ ...filter, eventTypes: undefined })}
+            style={{ fontSize: "0.78rem", padding: "0.2rem 0.5rem" }}
+          >
+            Clear All
+          </button>
+        </div>
         <div
           style={{
             display: "grid",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { SessionState } from "../../../shared/state-machine/src/index.js";
 import type { EventEnvelope } from "../../../shared/event-schema/src/index.js";
 import { initialSessionState } from "../../../shared/state-machine/src/index.js";
@@ -20,6 +20,9 @@ import { EventInspector } from "./components/EventInspector.js";
 import { FilterControls } from "./components/FilterControls.js";
 import { ReplayControls } from "./components/ReplayControls.js";
 import type { FilterConfig, InspectorEntry, ReplaySpeed } from "./types.js";
+
+/** Pixel threshold below which the event list is considered "scrolled to bottom". */
+const AUTO_SCROLL_THRESHOLD = 40;
 
 /** Ingest service base URL — matches the default Fastify server binding. */
 const INGEST_BASE = "http://127.0.0.1:7070";
@@ -55,6 +58,8 @@ export function App() {
     return parsed === 0.5 || parsed === 1 || parsed === 2 || parsed === 4 ? parsed : 1;
   });
   const [isPlaying, setIsPlaying] = useState(false);
+  const eventListRef = useRef<HTMLUListElement>(null);
+  const userScrolledRef = useRef(false);
 
   // --- SSE connection for real-time state updates (LIVE-FR-03) ---
   useEffect(() => {
@@ -139,6 +144,16 @@ export function App() {
   const filteredEvents = applyFilter(timelineSource, filter);
   const ganttRows = useMemo(() => buildGanttData(filteredEvents), [filteredEvents]);
   const sessionCompleted = displayedState.lifecycle === "completed";
+  const isIdle = displayedState.visualization === "idle" && !sessionCompleted;
+
+  // Auto-scroll event list to bottom when new events arrive (skip if user scrolled up)
+  useEffect(() => {
+    if (replayMode || userScrolledRef.current) return;
+    const ul = eventListRef.current;
+    if (ul && ul.lastElementChild) {
+      ul.lastElementChild.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [filteredEvents.length, replayMode]);
 
   const handleSelectEvent = useCallback((event: EventEnvelope) => {
     setSelected({
@@ -197,28 +212,48 @@ export function App() {
         <h1 style={{ fontSize: "1.4rem", margin: 0, letterSpacing: "-0.01em" }}>
           Copilot Agent Activity Visualizer
         </h1>
-        <span
-          aria-live="polite"
-          role="status"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: "0.85rem",
-            color: connected ? "#22c55e" : "#f59e0b",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          {replayMode && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "#f59e0b",
+                background: "rgba(245, 158, 11, 0.12)",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
+                borderRadius: 6,
+                padding: "0.2rem 0.6rem",
+              }}
+            >
+              🔄 Replay Mode
+            </span>
+          )}
           <span
+            aria-live="polite"
+            role="status"
             style={{
-              display: "inline-block",
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: connected ? "#22c55e" : "#f59e0b",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: "0.85rem",
+              color: connected ? "#22c55e" : "#f59e0b",
             }}
-          />
-          {connected ? "Connected" : "Connecting…"}
-        </span>
+          >
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: connected ? "#22c55e" : "#f59e0b",
+              }}
+            />
+            {connected ? "Connected" : "Connecting…"}
+          </span>
+        </div>
       </header>
 
       {/* Gantt Chart - visual centerpiece */}
@@ -226,7 +261,7 @@ export function App() {
         <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#94a3b8", fontWeight: 500 }}>
           Timeline
         </h2>
-        <GanttChart rows={ganttRows} sessionCompleted={sessionCompleted} />
+        <GanttChart rows={ganttRows} sessionCompleted={sessionCompleted} isIdle={isIdle} />
       </div>
 
       <div style={{ display: "flex", gap: "1.5rem" }}>
@@ -297,7 +332,16 @@ export function App() {
             <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>
               Events ({filteredEvents.length})
             </h2>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <ul
+              ref={eventListRef}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                // User has scrolled up if not near the bottom
+                userScrolledRef.current =
+                  el.scrollHeight - el.scrollTop - el.clientHeight > AUTO_SCROLL_THRESHOLD;
+              }}
+              style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 400, overflowY: "auto" }}
+            >
               {filteredEvents.map((ev) => (
                 <li key={ev.eventId}>
                   <button

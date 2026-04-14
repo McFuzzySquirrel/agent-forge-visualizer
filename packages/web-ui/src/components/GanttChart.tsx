@@ -15,6 +15,10 @@ const POINT_EVENT_WIDTH = 8;
 const MIN_PIXELS_PER_TICK = 100;
 const MAX_TOOLTIP_VALUE_LENGTH = 120;
 
+/** Dashed repeating gradient for idle gap segments. */
+const IDLE_GAP_GRADIENT =
+  "repeating-linear-gradient(90deg, var(--gantt-idle, #475569) 0px, var(--gantt-idle, #475569) 4px, transparent 4px, transparent 8px)";
+
 const CATEGORY_COLORS: Record<GanttSegment["category"], string> = {
   session: "var(--gantt-session, #3b82f6)",
   tool: "var(--gantt-tool-success, #22c55e)",
@@ -26,6 +30,7 @@ const CATEGORY_COLORS: Record<GanttSegment["category"], string> = {
 function barColor(seg: GanttSegment): string {
   if (seg.status === "failed") return "var(--gantt-tool-failed, #ef4444)";
   if (seg.status === "running") return "var(--gantt-tool-running, #f59e0b)";
+  if (seg.status === "idle") return "var(--gantt-idle, #475569)";
   return CATEGORY_COLORS[seg.category];
 }
 
@@ -205,16 +210,18 @@ interface Props {
   rows: GanttRow[];
   /** When true, the session has ended — stop animating running bars. */
   sessionCompleted?: boolean;
+  /** When true, the visualization state is idle — pause animations for running bars. */
+  isIdle?: boolean;
 }
 
-export function GanttChart({ rows, sessionCompleted }: Props) {
+export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [now, setNow] = useState(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
 
-  // Tick `now` forward while there are running segments and session is active
-  const hasRunning = !sessionCompleted && rows.some((r) =>
+  // Tick `now` forward while there are running segments, session is active, and not idle
+  const hasRunning = !sessionCompleted && !isIdle && rows.some((r) =>
     r.segments.some((s) => s.endTime === null)
   );
 
@@ -336,6 +343,8 @@ export function GanttChart({ rows, sessionCompleted }: Props) {
                 const widthPct = ((end - seg.startTime) / range) * 100;
                 const isPoint = seg.endTime === seg.startTime;
                 const isRunning = seg.endTime === null;
+                const shouldAnimate = isRunning && !isIdle;
+                const isIdleGap = seg.status === "idle" && seg.eventType === "idle";
 
                 return (
                   <div
@@ -349,12 +358,14 @@ export function GanttChart({ rows, sessionCompleted }: Props) {
                       height: ROW_HEIGHT - BAR_V_PADDING * 2,
                       width: isPoint ? POINT_EVENT_WIDTH : `${widthPct}%`,
                       minWidth: isPoint ? POINT_EVENT_WIDTH : MIN_BAR_WIDTH,
-                      background: barColor(seg),
+                      background: isIdleGap
+                        ? IDLE_GAP_GRADIENT
+                        : barColor(seg),
                       borderRadius: isPoint ? "50%" : 4,
-                      opacity: 0.9,
+                      opacity: isIdleGap ? 0.35 : (isRunning && isIdle ? 0.5 : 0.9),
                       cursor: "pointer",
                       transition: isRunning ? "none" : "width 0.3s ease",
-                      animation: isRunning
+                      animation: shouldAnimate
                         ? "gantt-pulse 1.5s ease-in-out infinite"
                         : "none",
                     }}
@@ -399,6 +410,7 @@ export function GanttChart({ rows, sessionCompleted }: Props) {
           ["Failed", "var(--gantt-tool-failed, #ef4444)"],
           ["Agent", "var(--gantt-subagent, #a855f7)"],
           ["Prompt", "var(--gantt-prompt, #06b6d4)"],
+          ["Idle", "var(--gantt-idle, #475569)"],
         ] as const).map(([name, color]) => (
           <span key={name} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <span

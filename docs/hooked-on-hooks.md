@@ -72,8 +72,9 @@ of hooks in action. Here's the architecture in a nutshell:
 3. The **ingest service** picks up events and feeds them through a deterministic
    state machine that tracks session, tool, and sub-agent states.
 4. The **web UI** renders the live state as a dark-themed dashboard featuring a
-   Gantt chart timeline, lane-based activity board, and event inspector — and
-   supports replay with timeline scrubbing.
+   Gantt chart timeline with idle gap visualization, lane-based activity board
+   with pulsing status indicators, and event inspector with auto-scrolling event
+   list — and supports replay with timeline scrubbing and a header mode badge.
 
 ### Lesson 1: Schema First, Always
 
@@ -239,6 +240,41 @@ subdirectory. It makes ownership obvious and cleanup trivial.
 See [ADR-004](adr/004-visualizer-hooks-subdirectory.md) for the full design
 rationale.
 
+### Lesson 8: Make Idle Visible
+
+When we first built the Gantt chart, it pulsed every open bar continuously.
+A session could be idle for 30 seconds between tool invocations and the
+timeline looked the same as when it was actively running tools. This made it
+impossible to distinguish "working hard" from "waiting for the next prompt."
+
+We fixed this with three changes:
+
+1. **Idle-aware animation.** The `GanttChart` accepts an `isIdle` prop. When
+   true, running bars stop pulsing and dim to 50% opacity. When activity
+   resumes, the pulse restarts. This means the chart *breathes* with the
+   session — active periods pulse, quiet periods go still.
+
+2. **Idle gap segments.** `buildGanttData` tracks the time between tool/subagent
+   completions and the next activity. These gaps become dashed, dimmed segments
+   on the session row, making idle periods visible at a glance:
+
+   ```
+   ┌───────┐╌╌╌╌┌───────┐╌╌╌╌╌╌╌╌╌╌╌╌┌───────┐
+   │ Tool A│    │ Tool B│              │ Tool C│
+   └───────┘    └───────┘              └───────┘
+               idle gap              long idle gap
+   ```
+
+3. **Terminal session status.** A completed session's lane now shows "Succeeded"
+   instead of the misleading "Idle" — the status is overridden in the
+   presentation layer based on lifecycle state, not visualization state.
+
+**Lesson:** Time between events matters as much as the events themselves. If
+your visualization doesn't show idle periods, it hides half the story.
+
+See [ADR-005](adr/005-idle-aware-gantt-and-ui-polish.md) for the full design
+rationale.
+
 ---
 
 ## Best Practices: The Hook Hygiene Checklist
@@ -262,6 +298,8 @@ Here's what we wish we knew on Day 1:
 - **Declare your hooks in a manifest.** A single JSON file that lists every event
   type your system captures is easier to review, diff, and automate than a bag of
   scripts.
+- **Make idle time visible.** Gaps between events carry information. If your
+  visualization skips idle periods, you're hiding half the session's story.
 - **Test your hooks in isolation.** Hook logic should be unit-testable without
   spinning up the whole agent runtime.
 
@@ -401,7 +439,8 @@ Want to go deeper? Here are the official sources:
 | 7 | One-command bootstrap beats a 15-step setup guide every time |
 | 8 | A manifest makes hook wiring explicit, inspectable, and version-controllable |
 | 9 | Isolate generated files in a subdirectory — clear ownership, no collisions |
-| 10 | Keep hooks lightweight — capture the moment, process it elsewhere |
+| 10 | Make idle time visible — gaps between events tell as much as the events themselves |
+| 11 | Keep hooks lightweight — capture the moment, process it elsewhere |
 
 ---
 

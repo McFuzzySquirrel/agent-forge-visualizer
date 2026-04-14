@@ -35,10 +35,17 @@ export function mapStateToLanes(state: SessionState): LaneData[] {
   const lanes: LaneData[] = [];
 
   // --- Session lane (always rendered) ---
+  // Override status for terminal lifecycle states: a completed session should
+  // show "Succeeded" (not "Idle"), and a failed session should show "Error".
+  const sessionStatus: VisualStatus =
+    state.lifecycle === "completed" ? "succeeded" :
+    state.lifecycle === "failed"    ? "error" :
+    vizToStatus(state.visualization);
+
   lanes.push({
     id: "session",
     label: `Session: ${state.sessionId}`,
-    status: vizToStatus(state.visualization),
+    status: sessionStatus,
     details: state.lifecycle
   });
 
