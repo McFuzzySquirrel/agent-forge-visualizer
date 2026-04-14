@@ -32,7 +32,7 @@ the visualizer had no reliable way to discover which events were configured.
    timeout defaults.
 
 2. **Introduce a dedicated visualizer manifest.** During bootstrap, always
-   create `.github/hooks/visualizer-hooks.json` — a machine-readable manifest
+   create `.github/hooks/visualizer/visualizer-hooks.json` — a machine-readable manifest
    that declares every covered event type with its corresponding hook command.
    This file is:
    - Distinct from user-managed or EJS manifests.
@@ -75,8 +75,8 @@ the visualizer had no reliable way to discover which events were configured.
 
 1. Existing repos bootstrapped before this change must re-run bootstrap (or
    unbootstrap + bootstrap) to gain the four new event types and the manifest.
-2. The `.github/hooks/` directory now contains a visualizer-owned file that
-   operators should not manually edit (it is overwritten on re-bootstrap).
+2. The `.github/hooks/visualizer/` subdirectory contains visualizer-owned files that
+   operators should not manually edit (they are overwritten on re-bootstrap).
 
 ## Alternatives Considered
 
@@ -86,7 +86,7 @@ Rejected because it left the visualizer without a manifest when no
 third-party manifest existed, and it entangled visualizer entries with
 user-managed manifests.
 
-### B) Store the manifest in `.visualizer/` instead of `.github/hooks/`
+### B) Store the manifest in `.visualizer/` instead of `.github/hooks/visualizer/`
 
 Rejected because hook consumers and tooling expect manifests in
 `.github/hooks/`. Placing the manifest elsewhere would require additional

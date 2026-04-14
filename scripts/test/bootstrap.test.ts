@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchHookFilename, updateEjsHooksManifest, updateHookManifest, VISUALIZER_MANIFEST_NAME } from "../bootstrap-existing-repo.js";
+import { matchHookFilename, updateEjsHooksManifest, updateHookManifest, VISUALIZER_MANIFEST_NAME, VISUALIZER_HOOKS_SUBDIR } from "../bootstrap-existing-repo.js";
 
 describe("matchHookFilename", () => {
   it("matches exact canonical names", () => {
@@ -149,7 +149,7 @@ describe("updateEjsHooksManifest", () => {
     expect(addedEvents).toEqual(["subagentStart"]);
     const hooks = updated.hooks as Record<string, unknown>;
     const startCommands = hooks.subagentStart as Array<Record<string, unknown>>;
-    expect(startCommands[0]?.bash).toBe("./.github/hooks/subagent-start.sh");
+    expect(startCommands[0]?.bash).toBe(`./.github/hooks/visualizer/subagent-start.sh`);
     expect(startCommands[0]?.timeoutSec).toBe(10);
 
     const sessionCommands = hooks.sessionStart as Array<Record<string, unknown>>;
@@ -167,8 +167,8 @@ describe("updateEjsHooksManifest", () => {
     const hooks = updated.hooks as Record<string, unknown>;
     const sessionCommands = hooks.sessionStart as Array<Record<string, unknown>>;
     const subagentCommands = hooks.subagentStart as Array<Record<string, unknown>>;
-    expect(sessionCommands[0]?.bash).toBe("./.github/hooks/viz-session-start.sh");
-    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/viz-subagent-start.sh");
+    expect(sessionCommands[0]?.bash).toBe("./.github/hooks/visualizer/viz-session-start.sh");
+    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/visualizer/viz-subagent-start.sh");
   });
 
   it("initializes hooks object when manifest shape is incomplete", () => {
@@ -187,7 +187,7 @@ describe("updateEjsHooksManifest", () => {
     expect(addedEvents).toEqual(["subagentStart"]);
     const hooks = updated.hooks as Record<string, unknown>;
     const subagentCommands = hooks.subagentStart as Array<Record<string, unknown>>;
-    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/subagent-start.sh");
+    expect(subagentCommands[0]?.bash).toBe("./.github/hooks/visualizer/subagent-start.sh");
   });
 
   it("generates manifest commands for all 11 event types", () => {
@@ -217,7 +217,7 @@ describe("updateEjsHooksManifest", () => {
       expect(commands, `${eventType} should have commands`).toBeDefined();
       expect(commands).toHaveLength(1);
       expect(commands[0]?.type).toBe("command");
-      expect(commands[0]?.bash).toMatch(/^\.\/\.github\/hooks\//);
+      expect(commands[0]?.bash).toMatch(/^\.\/\.github\/hooks\/visualizer\//);
     }
   });
 
@@ -228,10 +228,10 @@ describe("updateEjsHooksManifest", () => {
     );
 
     const hooks = updated.hooks as Record<string, unknown>;
-    expect((hooks.postToolUseFailure as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/post-tool-use-failure.sh");
-    expect((hooks.agentStop as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/agent-stop.sh");
-    expect((hooks.notification as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/notification.sh");
-    expect((hooks.errorOccurred as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/error-occurred.sh");
+    expect((hooks.postToolUseFailure as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/post-tool-use-failure.sh");
+    expect((hooks.agentStop as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/agent-stop.sh");
+    expect((hooks.notification as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/notification.sh");
+    expect((hooks.errorOccurred as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/error-occurred.sh");
   });
 
   it("uses correct prefixed filenames for new event types", () => {
@@ -242,15 +242,21 @@ describe("updateEjsHooksManifest", () => {
     );
 
     const hooks = updated.hooks as Record<string, unknown>;
-    expect((hooks.postToolUseFailure as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/viz-post-tool-use-failure.sh");
-    expect((hooks.agentStop as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/viz-agent-stop.sh");
-    expect((hooks.notification as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/viz-notification.sh");
-    expect((hooks.errorOccurred as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/viz-error-occurred.sh");
+    expect((hooks.postToolUseFailure as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-post-tool-use-failure.sh");
+    expect((hooks.agentStop as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-agent-stop.sh");
+    expect((hooks.notification as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-notification.sh");
+    expect((hooks.errorOccurred as Array<Record<string, unknown>>)[0]?.bash).toBe("./.github/hooks/visualizer/viz-error-occurred.sh");
   });
 });
 
 describe("VISUALIZER_MANIFEST_NAME", () => {
   it("exports the manifest filename constant", () => {
     expect(VISUALIZER_MANIFEST_NAME).toBe("visualizer-hooks.json");
+  });
+});
+
+describe("VISUALIZER_HOOKS_SUBDIR", () => {
+  it("exports the hooks subdirectory constant", () => {
+    expect(VISUALIZER_HOOKS_SUBDIR).toBe("visualizer");
   });
 });

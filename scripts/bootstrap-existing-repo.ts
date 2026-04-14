@@ -142,13 +142,16 @@ This repo was bootstrapped for Copilot Agent Activity Visualizer.
 - .visualizer/emit-event.sh
 - .visualizer/visualizer.config.json
 - .visualizer/logs/events.jsonl (created on first emit)
-- .github/hooks/visualizer-hooks.json (canonical hook manifest)
+- .github/hooks/visualizer/visualizer-hooks.json (canonical hook manifest)
 ${prefixNote}
 ## Visualizer Manifest
 
-The file \`.github/hooks/visualizer-hooks.json\` is the single source of truth
+The file \`.github/hooks/visualizer/visualizer-hooks.json\` is the single source of truth
 for which lifecycle events the visualizer captures. It is auto-generated during
 bootstrap and lists every event type with its corresponding hook command.
+
+All visualizer-generated stub hooks live in \`.github/hooks/visualizer/\` to keep
+them isolated from user-managed hooks.
 
 When unbootstrapping, this manifest is deleted automatically.
 
@@ -179,6 +182,9 @@ errorOccurred
 The bootstrap script scans \`.github/hooks/\` and its subdirectories for shell
 scripts that match known lifecycle names. If your hooks live in a subfolder
 (e.g. \`.github/hooks/copilot/session-start.sh\`) they are discovered automatically.
+
+When \`--create-hooks\` is used, stub scripts are placed in
+\`.github/hooks/visualizer/\` to keep them separate from user-managed hooks.
 
 When a \`--prefix\` is used, filenames like \`<prefix>-session-start.sh\` are also
 matched (e.g. \`viz-session-start.sh\` with \`--prefix viz\`).
@@ -365,6 +371,13 @@ const DEFAULT_TIMEOUT_BY_EVENT: Record<string, number> = {
  */
 export const VISUALIZER_MANIFEST_NAME = "visualizer-hooks.json";
 
+/**
+ * Subdirectory under .github/hooks/ where all visualizer-generated files
+ * (stub hook scripts and the manifest) are placed. Keeps visualizer artifacts
+ * isolated from user-managed hooks.
+ */
+export const VISUALIZER_HOOKS_SUBDIR = "visualizer";
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -376,7 +389,7 @@ function buildManifestCommand(eventType: string, prefix?: string): HookCommand |
   const hookFile = prefix ? `${prefix}-${canonicalHook}` : canonicalHook;
   return {
     type: "command",
-    bash: `./.github/hooks/${hookFile}`,
+    bash: `./.github/hooks/${VISUALIZER_HOOKS_SUBDIR}/${hookFile}`,
     cwd: ".",
     timeoutSec: DEFAULT_TIMEOUT_BY_EVENT[eventType] ?? 10,
   };
@@ -495,7 +508,7 @@ set -euo pipefail
 # Add your custom logic above the visualizer emit block below.
 
 SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---
 if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then
@@ -508,7 +521,7 @@ exit 0
 }
 
 async function createStubHooks(targetRepo: string, prefix?: string): Promise<number> {
-  const hooksDir = join(targetRepo, ".github", "hooks");
+  const hooksDir = join(targetRepo, ".github", "hooks", VISUALIZER_HOOKS_SUBDIR);
   await mkdir(hooksDir, { recursive: true });
 
   let created = 0;
@@ -632,7 +645,8 @@ async function createVisualizerManifest(
   coveredEvents: ReadonlySet<string>,
   prefix?: string
 ): Promise<void> {
-  await mkdir(hooksDir, { recursive: true });
+  const vizDir = join(hooksDir, VISUALIZER_HOOKS_SUBDIR);
+  await mkdir(vizDir, { recursive: true });
 
   const allEvents = CANONICAL_HOOK_NAMES
     .map((hookName) => HOOK_MAP[hookName].eventType)
@@ -640,7 +654,7 @@ async function createVisualizerManifest(
     .filter((eventType) => coveredEvents.has(eventType));
 
   if (allEvents.length === 0) {
-    console.log(`\nSKIP  .github/hooks/${VISUALIZER_MANIFEST_NAME} — no covered events (manifest not created)`);
+    console.log(`\nSKIP  .github/hooks/${VISUALIZER_HOOKS_SUBDIR}/${VISUALIZER_MANIFEST_NAME} — no covered events (manifest not created)`);
     return;
   }
 
@@ -658,9 +672,9 @@ async function createVisualizerManifest(
     hooks,
   };
 
-  const manifestPath = join(hooksDir, VISUALIZER_MANIFEST_NAME);
+  const manifestPath = join(vizDir, VISUALIZER_MANIFEST_NAME);
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  console.log(`\nCREATE .github/hooks/${VISUALIZER_MANIFEST_NAME} — ${allEvents.length} event types`);
+  console.log(`\nCREATE .github/hooks/${VISUALIZER_HOOKS_SUBDIR}/${VISUALIZER_MANIFEST_NAME} — ${allEvents.length} event types`);
 }
 
 async function wireHooks(targetRepo: string, prefix?: string, createHooks?: boolean): Promise<void> {
@@ -765,14 +779,16 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
       (name) => !coveredEvents.has(HOOK_MAP[name].eventType)
     );
     if (missingCanonical.length > 0) {
+      const vizHooksDir = join(hooksDir, VISUALIZER_HOOKS_SUBDIR);
+      await mkdir(vizHooksDir, { recursive: true });
       console.log(`\nCreating stub hooks for uncovered event types:`);
       for (const canonical of missingCanonical) {
         const stubName = prefix ? `${prefix}-${canonical}` : canonical;
-        const stubPath = join(hooksDir, stubName);
+        const stubPath = join(vizHooksDir, stubName);
 
         try {
           await access(stubPath, constants.F_OK);
-          console.log(`  EXISTS ${stubName} — not overwriting`);
+          console.log(`  EXISTS ${VISUALIZER_HOOKS_SUBDIR}/${stubName} — not overwriting`);
           continue;
         } catch {
           // File doesn't exist, proceed to create
@@ -787,7 +803,7 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
         );
         await writeFile(stubPath, script, "utf8");
         await chmod(stubPath, 0o755);
-        console.log(`  CREATE ${stubName} → ${mapping.eventType}`);
+        console.log(`  CREATE ${VISUALIZER_HOOKS_SUBDIR}/${stubName} → ${mapping.eventType}`);
         wired += 1;
       }
     }
