@@ -65,6 +65,7 @@ This creates:
 - `.visualizer/visualizer.config.json`
 - `.visualizer/HOOK_INTEGRATION.md`
 - `.visualizer/logs/`
+- `.github/hooks/visualizer/visualizer-hooks.json` (canonical hook manifest)
 
 And it auto-wires known hook scripts in `.github/hooks/` (including subdirectories) when present.
 
@@ -76,7 +77,7 @@ Use `--create-hooks` to generate stub hook scripts automatically:
 npm run bootstrap:repo -- /path/to/target-repo --create-hooks
 ```
 
-This creates `.github/hooks/` with scripts for every lifecycle event (session start/end, tool use, subagent start/stop, etc.), each pre-wired to emit visualizer events.
+This creates `.github/hooks/visualizer/` with scripts for every lifecycle event (session start/end, tool use, tool failure, subagent start/stop, agent stop, notification, error, etc.), each pre-wired to emit visualizer events. A `visualizer-hooks.json` manifest is also created inside the same subdirectory as the canonical registry of all captured event types.
 
 Generated subagent hooks now capture richer start metadata when the host integration provides it, including display name, description, task text, and summary/message fields. The generated stubs prefer `AGENT_NAME` and `SUBAGENT_NAME`, then fall back through display-name and task-description style variables before using `unknown`.
 
@@ -129,6 +130,7 @@ npm run unbootstrap:repo -- /absolute/path/to/target-repo --prefix viz --apply
 
 Unbootstrap behavior:
 - Removes auto-wired visualizer emit blocks from hook scripts.
+- Deletes the dedicated `visualizer-hooks.json` manifest and the `visualizer/` subdirectory.
 - Updates compatible JSON hook manifests under `.github/hooks/` recursively by removing bootstrap-managed entries.
 - Deletes safe auto-generated stub hooks (boilerplate-only).
 - Removes `.visualizer/` in apply mode.
@@ -159,6 +161,8 @@ Print the supported hook event types from this repo:
 ```bash
 npx tsx scripts/configure-hooks.ts
 ```
+
+The `visualizer-hooks.json` manifest created during bootstrap is the canonical source of truth for which events the visualizer captures. It covers all 11 lifecycle event types.
 
 ## Package Layout
 

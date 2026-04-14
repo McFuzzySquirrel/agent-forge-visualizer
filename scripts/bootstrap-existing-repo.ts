@@ -142,7 +142,19 @@ This repo was bootstrapped for Copilot Agent Activity Visualizer.
 - .visualizer/emit-event.sh
 - .visualizer/visualizer.config.json
 - .visualizer/logs/events.jsonl (created on first emit)
+- .github/hooks/visualizer/visualizer-hooks.json (canonical hook manifest)
 ${prefixNote}
+## Visualizer Manifest
+
+The file \`.github/hooks/visualizer/visualizer-hooks.json\` is the single source of truth
+for which lifecycle events the visualizer captures. It is auto-generated during
+bootstrap and lists every event type with its corresponding hook command.
+
+All visualizer-generated stub hooks live in \`.github/hooks/visualizer/\` to keep
+them isolated from user-managed hooks.
+
+When unbootstrapping, this manifest is deleted automatically.
+
 ## Emit Command
 Use this in your automation/hooks:
 
@@ -157,6 +169,7 @@ SESSION_ID="run-$(date +%s)"
 .visualizer/emit-event.sh sessionStart '{}' "$SESSION_ID"
 .visualizer/emit-event.sh preToolUse '{"toolName":"bash","toolArgs":{"command":"npm test"}}' "$SESSION_ID"
 .visualizer/emit-event.sh postToolUse '{"toolName":"bash","status":"success","durationMs":1200}' "$SESSION_ID"
+.visualizer/emit-event.sh postToolUseFailure '{"toolName":"bash","status":"failure","errorSummary":"exit code 1"}' "$SESSION_ID"
 .visualizer/emit-event.sh sessionEnd '{}' "$SESSION_ID"
 \`\`\`
 
@@ -169,6 +182,9 @@ errorOccurred
 The bootstrap script scans \`.github/hooks/\` and its subdirectories for shell
 scripts that match known lifecycle names. If your hooks live in a subfolder
 (e.g. \`.github/hooks/copilot/session-start.sh\`) they are discovered automatically.
+
+When \`--create-hooks\` is used, stub scripts are placed in
+\`.github/hooks/visualizer/\` to keep them separate from user-managed hooks.
 
 When a \`--prefix\` is used, filenames like \`<prefix>-session-start.sh\` are also
 matched (e.g. \`viz-session-start.sh\` with \`--prefix viz\`).
@@ -277,14 +293,58 @@ const HOOK_MAP: Record<string, HookMapping> = {
     payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg status "\${STATUS:-unknown}" '{"toolName":$tool,"status":$status}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
+  "post-tool-use-failure.sh": {
+    eventType: "postToolUseFailure",
+    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg errorSummary "\${ERROR_SUMMARY:-}" '{"toolName":$tool,"status":"failure","errorSummary":$errorSummary}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "agent-stop.sh": {
+    eventType: "agentStop",
+    payloadSnippet: `$(jq -nc --arg agent "\${AGENT_NAME:-}" '{"agentName":$agent}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "notification.sh": {
+    eventType: "notification",
+    payloadSnippet: `$(jq -nc --arg notificationType "\${NOTIFICATION_TYPE:-info}" --arg title "\${TITLE:-notification}" --arg message "\${MESSAGE:-}" '{"notificationType":$notificationType,"title":$title,"message":$message}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
+  "error-occurred.sh": {
+    eventType: "errorOccurred",
+    payloadSnippet: `$(jq -nc --arg message "\${MESSAGE:-unknown error}" --arg code "\${CODE:-}" '{"message":$message,"code":$code}' 2>/dev/null || echo '{}')`,
+    sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
+  },
 };
 
 /**
- * Canonical stub filenames — the hyphenated variants from HOOK_MAP.
- * Derived from HOOK_MAP keys, keeping only hyphenated names (one per event type)
- * to avoid generating duplicate stubs for both "session-start.sh" and "sessionstart.sh".
+ * Canonical stub filenames — one per unique event type from HOOK_MAP.
+ * For event types that have both hyphenated and joined variants (e.g.
+ * "session-start.sh" and "sessionstart.sh"), prefer the hyphenated name.
+ * For event types with only one entry (e.g. "notification.sh"), use that entry.
  */
-const CANONICAL_HOOK_NAMES = Object.keys(HOOK_MAP).filter((name) => name.includes("-"));
+const CANONICAL_HOOK_NAMES = (() => {
+  const eventSeen = new Set<string>();
+  const hyphenated = Object.keys(HOOK_MAP).filter((name) => name.includes("-"));
+  const nonHyphenated = Object.keys(HOOK_MAP).filter((name) => !name.includes("-"));
+
+  const result: string[] = [];
+  // Add hyphenated names first (preferred)
+  for (const name of hyphenated) {
+    const eventType = HOOK_MAP[name].eventType;
+    if (!eventSeen.has(eventType)) {
+      eventSeen.add(eventType);
+      result.push(name);
+    }
+  }
+  // Then add any non-hyphenated names for events not yet covered
+  for (const name of nonHyphenated) {
+    const eventType = HOOK_MAP[name].eventType;
+    if (!eventSeen.has(eventType)) {
+      eventSeen.add(eventType);
+      result.push(name);
+    }
+  }
+  return result;
+})();
 
 const EVENT_TO_CANONICAL_HOOK: Record<string, string> = CANONICAL_HOOK_NAMES.reduce<Record<string, string>>((acc, hookName) => {
   acc[HOOK_MAP[hookName].eventType] = hookName;
@@ -297,9 +357,26 @@ const DEFAULT_TIMEOUT_BY_EVENT: Record<string, number> = {
   userPromptSubmitted: 5,
   preToolUse: 10,
   postToolUse: 10,
+  postToolUseFailure: 10,
   subagentStart: 10,
   subagentStop: 10,
+  agentStop: 10,
+  notification: 5,
+  errorOccurred: 10,
 };
+
+/**
+ * Name of the dedicated visualizer hook manifest. This file is the single
+ * source of truth for which lifecycle events the visualizer captures.
+ */
+export const VISUALIZER_MANIFEST_NAME = "visualizer-hooks.json";
+
+/**
+ * Subdirectory under .github/hooks/ where all visualizer-generated files
+ * (stub hook scripts and the manifest) are placed. Keeps visualizer artifacts
+ * isolated from user-managed hooks.
+ */
+export const VISUALIZER_HOOKS_SUBDIR = "visualizer";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -312,7 +389,7 @@ function buildManifestCommand(eventType: string, prefix?: string): HookCommand |
   const hookFile = prefix ? `${prefix}-${canonicalHook}` : canonicalHook;
   return {
     type: "command",
-    bash: `./.github/hooks/${hookFile}`,
+    bash: `./.github/hooks/${VISUALIZER_HOOKS_SUBDIR}/${hookFile}`,
     cwd: ".",
     timeoutSec: DEFAULT_TIMEOUT_BY_EVENT[eventType] ?? 10,
   };
@@ -431,7 +508,7 @@ set -euo pipefail
 # Add your custom logic above the visualizer emit block below.
 
 SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---
 if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then
@@ -444,7 +521,7 @@ exit 0
 }
 
 async function createStubHooks(targetRepo: string, prefix?: string): Promise<number> {
-  const hooksDir = join(targetRepo, ".github", "hooks");
+  const hooksDir = join(targetRepo, ".github", "hooks", VISUALIZER_HOOKS_SUBDIR);
   await mkdir(hooksDir, { recursive: true });
 
   let created = 0;
@@ -514,11 +591,11 @@ async function syncHookManifests(
   prefix?: string
 ): Promise<void> {
   const hooksDir = join(targetRepo, ".github", "hooks");
-  const manifests = await findJsonFiles(hooksDir);
 
-  if (manifests.length === 0) {
-    return;
-  }
+  // Always create the dedicated visualizer manifest with all covered events
+  await createVisualizerManifest(hooksDir, coveredEvents, prefix);
+
+  const manifests = await findJsonFiles(hooksDir);
 
   const orderedCoveredEvents = CANONICAL_HOOK_NAMES
     .map((hookName) => HOOK_MAP[hookName].eventType)
@@ -526,6 +603,11 @@ async function syncHookManifests(
     .filter((eventType) => coveredEvents.has(eventType));
 
   for (const { relPath, absPath } of manifests) {
+    // Skip the visualizer's own manifest — it was just created above
+    if (basename(relPath) === VISUALIZER_MANIFEST_NAME) {
+      continue;
+    }
+
     const manifestLabel = `.github/hooks/${relPath.replaceAll("\\", "/")}`;
 
     let parsed: unknown;
@@ -550,6 +632,49 @@ async function syncHookManifests(
     await writeFile(absPath, `${JSON.stringify(updated, null, 2)}\n`, "utf8");
     console.log(`\nPATCH ${manifestLabel} — added: ${addedEvents.join(", ")}`);
   }
+}
+
+/**
+ * Creates (or overwrites) the dedicated visualizer-hooks.json manifest in
+ * .github/hooks/. This manifest declares every covered lifecycle event with
+ * its corresponding hook command, serving as the single source of truth for
+ * what the visualizer expects to capture.
+ */
+async function createVisualizerManifest(
+  hooksDir: string,
+  coveredEvents: ReadonlySet<string>,
+  prefix?: string
+): Promise<void> {
+  const vizDir = join(hooksDir, VISUALIZER_HOOKS_SUBDIR);
+  await mkdir(vizDir, { recursive: true });
+
+  const allEvents = CANONICAL_HOOK_NAMES
+    .map((hookName) => HOOK_MAP[hookName].eventType)
+    .filter((eventType, idx, list) => list.indexOf(eventType) === idx)
+    .filter((eventType) => coveredEvents.has(eventType));
+
+  if (allEvents.length === 0) {
+    console.log(`\nSKIP  .github/hooks/${VISUALIZER_HOOKS_SUBDIR}/${VISUALIZER_MANIFEST_NAME} — no covered events (manifest not created)`);
+    return;
+  }
+
+  const hooks: Record<string, HookCommand[]> = {};
+  for (const eventType of allEvents) {
+    const cmd = buildManifestCommand(eventType, prefix);
+    if (cmd) {
+      hooks[eventType] = [cmd];
+    }
+  }
+
+  const manifest = {
+    version: 1,
+    description: "Auto-generated by Copilot Agent Activity Visualizer bootstrap. This is the canonical manifest for visualizer event capture.",
+    hooks,
+  };
+
+  const manifestPath = join(vizDir, VISUALIZER_MANIFEST_NAME);
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  console.log(`\nCREATE .github/hooks/${VISUALIZER_HOOKS_SUBDIR}/${VISUALIZER_MANIFEST_NAME} — ${allEvents.length} event types`);
 }
 
 async function wireHooks(targetRepo: string, prefix?: string, createHooks?: boolean): Promise<void> {
@@ -654,14 +779,16 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
       (name) => !coveredEvents.has(HOOK_MAP[name].eventType)
     );
     if (missingCanonical.length > 0) {
+      const vizHooksDir = join(hooksDir, VISUALIZER_HOOKS_SUBDIR);
+      await mkdir(vizHooksDir, { recursive: true });
       console.log(`\nCreating stub hooks for uncovered event types:`);
       for (const canonical of missingCanonical) {
         const stubName = prefix ? `${prefix}-${canonical}` : canonical;
-        const stubPath = join(hooksDir, stubName);
+        const stubPath = join(vizHooksDir, stubName);
 
         try {
           await access(stubPath, constants.F_OK);
-          console.log(`  EXISTS ${stubName} — not overwriting`);
+          console.log(`  EXISTS ${VISUALIZER_HOOKS_SUBDIR}/${stubName} — not overwriting`);
           continue;
         } catch {
           // File doesn't exist, proceed to create
@@ -676,7 +803,7 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
         );
         await writeFile(stubPath, script, "utf8");
         await chmod(stubPath, 0o755);
-        console.log(`  CREATE ${stubName} → ${mapping.eventType}`);
+        console.log(`  CREATE ${VISUALIZER_HOOKS_SUBDIR}/${stubName} → ${mapping.eventType}`);
         wired += 1;
       }
     }
@@ -688,6 +815,12 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
     const match = matchHookFilename(relPath, prefix);
     if (match) finalCoveredEvents.add(match.eventType);
   }
+
+  if (finalCoveredEvents.size === 0 && !createHooks) {
+    console.log("\n⚠️  No hook scripts matched any known lifecycle event type.");
+    console.log("Tip: re-run with --create-hooks to generate stub hooks for all 11 event types.");
+  }
+
   await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
 
   console.log(`\nHook wiring complete: ${wired} wired, ${skipped} skipped.`);
