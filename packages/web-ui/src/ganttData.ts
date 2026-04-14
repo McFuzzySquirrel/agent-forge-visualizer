@@ -98,6 +98,17 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
           openSession.status = "succeeded";
           openSession = null;
         }
+        // Auto-close any still-open tools and subagents when session ends
+        for (const [key, seg] of openTools) {
+          seg.endTime = t;
+          seg.status = seg.status === "running" ? "succeeded" : seg.status;
+          openTools.delete(key);
+        }
+        for (const [key, seg] of openSubagents) {
+          seg.endTime = t;
+          seg.status = seg.status === "running" ? "succeeded" : seg.status;
+          openSubagents.delete(key);
+        }
         break;
       }
 
