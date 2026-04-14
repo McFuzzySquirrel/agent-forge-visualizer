@@ -616,7 +616,7 @@ function buildEmitBlockPostToolUse(emitScriptRelPath: string, sessionSnippet: st
  */
 const STDIN_EXTRACTION_BLOCK_PS1 = [
   `# Read Copilot CLI context from stdin (JSON payload)`,
-  `try { $_vizStdin = $input | Out-String } catch { $_vizStdin = '{}' }`,
+  `try { $_vizStdin = [Console]::In.ReadToEnd() } catch { $_vizStdin = '{}' }`,
   `if (-not $_vizStdin) { $_vizStdin = '{}' }`,
   `try { $_vizJson = $_vizStdin | ConvertFrom-Json } catch { $_vizJson = $null }`,
   // Single-line function: avoids standalone `}` that would break the ps1BlockPattern regex in unbootstrap
@@ -650,18 +650,18 @@ const STDIN_EXTRACTION_BLOCK_PS1 = [
 
 // ── PowerShell payload snippets — only real Copilot CLI hook types ─────
 const PS1_PAYLOAD_MAP: Record<string, { payloadSnippet: string; sessionSnippet: string }> = {
-  sessionStart:        { payloadSnippet: `(ConvertTo-Json @{ source = if ($env:SOURCE) { $env:SOURCE } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  sessionEnd:          { payloadSnippet: `(ConvertTo-Json @{ reason = if ($env:REASON) { $env:REASON } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  subagentStop:        { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }; taskDescription = if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }; message = if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  userPromptSubmitted: { payloadSnippet: `(ConvertTo-Json @{ prompt = if ($env:PROMPT) { $env:PROMPT } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  preToolUse:          { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  sessionStart:        { payloadSnippet: `(ConvertTo-Json @{ source = $(if ($env:SOURCE) { $env:SOURCE } else { 'unknown' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  sessionEnd:          { payloadSnippet: `(ConvertTo-Json @{ reason = $(if ($env:REASON) { $env:REASON } else { 'unknown' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  subagentStop:        { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  userPromptSubmitted: { payloadSnippet: `(ConvertTo-Json @{ prompt = $(if ($env:PROMPT) { $env:PROMPT } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  preToolUse:          { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   // NOTE: postToolUse payloadSnippet is not used at runtime — the conditional
   // variants (buildStubScriptPs1PostToolUse / buildEmitBlockPs1PostToolUse)
   // override this with proper success/failure routing.
-  postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  errorOccurred:       { payloadSnippet: `(ConvertTo-Json @{ message = if ($env:MESSAGE) { $env:MESSAGE } else { 'unknown error' }; code = if ($env:CODE) { $env:CODE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success' } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  errorOccurred:       { payloadSnippet: `(ConvertTo-Json @{ message = $(if ($env:MESSAGE) { $env:MESSAGE } else { 'unknown error' }); code = $(if ($env:CODE) { $env:CODE } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
 };
 
 function buildEmitBlockPs1(emitScriptRelPath: string, eventType: string): string {
@@ -701,10 +701,10 @@ function buildEmitBlockPs1PostToolUse(emitScriptRelPath: string): string {
     `if (Test-Path $_vizEmitScript) {`,
     `  try {`,
     `    if ($env:STATUS -eq 'failure' -or $env:STATUS -eq 'denied') {`,
-    `      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)`,
+    `      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }) } -Compress)`,
     `      & $_vizEmitScript -EventType "postToolUseFailure" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
     `    } else {`,
-    `      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)`,
+    `      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success' } -Compress)`,
     `      & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
     `    }`,
     `  } catch { <# visualizer emit errors are intentionally silenced #> }`,
@@ -846,10 +846,10 @@ $_vizEmitScript = Join-Path $RepoRoot "${emitScriptRelPath}"
 if (Test-Path $_vizEmitScript) {
   try {
     if ($env:STATUS -eq 'failure' -or $env:STATUS -eq 'denied') {
-      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)
+      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }) } -Compress)
       & $_vizEmitScript -EventType "postToolUseFailure" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
     } else {
-      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)
+      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success' } -Compress)
       & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
     }
   } catch { <# visualizer emit errors are intentionally silenced #> }
