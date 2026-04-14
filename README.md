@@ -185,3 +185,4 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - Product vision: `docs/product-vision.md`
 - Progress tracker: `docs/PROGRESS.md`
 - Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
+- Learning guide: `docs/hooked-on-hooks.md` — a practical guide to Copilot CLI hooks, patterns, and best practices
