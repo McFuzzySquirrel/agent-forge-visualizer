@@ -639,6 +639,11 @@ async function createVisualizerManifest(
     .filter((eventType, idx, list) => list.indexOf(eventType) === idx)
     .filter((eventType) => coveredEvents.has(eventType));
 
+  if (allEvents.length === 0) {
+    console.log(`\nSKIP  .github/hooks/${VISUALIZER_MANIFEST_NAME} — no covered events (manifest not created)`);
+    return;
+  }
+
   const hooks: Record<string, HookCommand[]> = {};
   for (const eventType of allEvents) {
     const cmd = buildManifestCommand(eventType, prefix);
@@ -794,6 +799,13 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
     const match = matchHookFilename(relPath, prefix);
     if (match) finalCoveredEvents.add(match.eventType);
   }
+
+  if (finalCoveredEvents.size === 0 && !createHooks) {
+    console.log("\n⚠️  No hook scripts matched any known lifecycle event type.");
+    console.log("The visualizer manifest was not created because there are no events to declare.");
+    console.log("Tip: re-run with --create-hooks to generate stub hooks for all 11 event types.");
+  }
+
   await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
 
   console.log(`\nHook wiring complete: ${wired} wired, ${skipped} skipped.`);
