@@ -348,6 +348,10 @@ const HOOK_MAP: Record<string, HookMapping> = {
     payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
+  // NOTE: This payloadSnippet is only used by buildStubScript and buildEmitBlock
+  // for the default (non-conditional) path. For postToolUse, the conditional
+  // variants (buildStubScriptPostToolUse / buildEmitBlockPostToolUse) override
+  // this with proper success/failure routing based on toolResult.resultType.
   "post-tool-use.sh": {
     eventType: "postToolUse",
     payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')`,
@@ -649,6 +653,9 @@ const PS1_PAYLOAD_MAP: Record<string, { payloadSnippet: string; sessionSnippet: 
   subagentStop:        { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }; taskDescription = if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }; message = if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   userPromptSubmitted: { payloadSnippet: `(ConvertTo-Json @{ prompt = if ($env:PROMPT) { $env:PROMPT } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   preToolUse:          { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  // NOTE: postToolUse payloadSnippet is not used at runtime — the conditional
+  // variants (buildStubScriptPs1PostToolUse / buildEmitBlockPs1PostToolUse)
+  // override this with proper success/failure routing.
   postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'failure'; errorSummary = if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = if ($env:AGENT_NAME) { $env:AGENT_NAME } else { '' } } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
