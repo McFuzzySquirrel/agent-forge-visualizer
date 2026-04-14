@@ -21,6 +21,9 @@ import { FilterControls } from "./components/FilterControls.js";
 import { ReplayControls } from "./components/ReplayControls.js";
 import type { FilterConfig, InspectorEntry, ReplaySpeed } from "./types.js";
 
+/** Pixel threshold below which the event list is considered "scrolled to bottom". */
+const AUTO_SCROLL_THRESHOLD = 40;
+
 /** Ingest service base URL — matches the default Fastify server binding. */
 const INGEST_BASE = "http://127.0.0.1:7070";
 
@@ -335,7 +338,7 @@ export function App() {
                 const el = e.currentTarget;
                 // User has scrolled up if not near the bottom
                 userScrolledRef.current =
-                  el.scrollHeight - el.scrollTop - el.clientHeight > 40;
+                  el.scrollHeight - el.scrollTop - el.clientHeight > AUTO_SCROLL_THRESHOLD;
               }}
               style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 400, overflowY: "auto" }}
             >

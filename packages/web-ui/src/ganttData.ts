@@ -259,12 +259,11 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
         break;
       }
 
-      /* ---- agentStop, notification: add as session-level markers ---- */
-      case "agentStop":
-      case "notification": {
-        const agentLabel = ev.eventType === "agentStop" && payload?.agentName
+      /* ---- agentStop: session-level marker that transitions to idle ---- */
+      case "agentStop": {
+        const agentLabel = payload?.agentName
           ? `Agent Stop: ${payload.agentName as string}`
-          : ev.eventType === "notification" ? "Notification" : "Agent Stop";
+          : "Agent Stop";
         const seg: GanttSegment = {
           id: ev.eventId,
           label: agentLabel,
@@ -276,10 +275,23 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
           details: payload,
         };
         sessionSegments.push(seg);
-        // agentStop transitions to idle
-        if (ev.eventType === "agentStop") {
-          idleGapStart = t;
-        }
+        idleGapStart = t;
+        break;
+      }
+
+      /* ---- notification: session-level marker (no state change) ---- */
+      case "notification": {
+        const seg: GanttSegment = {
+          id: ev.eventId,
+          label: "Notification",
+          category: "session",
+          startTime: t,
+          endTime: t,
+          status: "idle",
+          eventType: ev.eventType,
+          details: payload,
+        };
+        sessionSegments.push(seg);
         break;
       }
     }

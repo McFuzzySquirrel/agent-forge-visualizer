@@ -15,6 +15,10 @@ const POINT_EVENT_WIDTH = 8;
 const MIN_PIXELS_PER_TICK = 100;
 const MAX_TOOLTIP_VALUE_LENGTH = 120;
 
+/** Dashed repeating gradient for idle gap segments. */
+const IDLE_GAP_GRADIENT =
+  "repeating-linear-gradient(90deg, var(--gantt-idle, #475569) 0px, var(--gantt-idle, #475569) 4px, transparent 4px, transparent 8px)";
+
 const CATEGORY_COLORS: Record<GanttSegment["category"], string> = {
   session: "var(--gantt-session, #3b82f6)",
   tool: "var(--gantt-tool-success, #22c55e)",
@@ -355,7 +359,7 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                       width: isPoint ? POINT_EVENT_WIDTH : `${widthPct}%`,
                       minWidth: isPoint ? POINT_EVENT_WIDTH : MIN_BAR_WIDTH,
                       background: isIdleGap
-                        ? `repeating-linear-gradient(90deg, var(--gantt-idle, #475569) 0px, var(--gantt-idle, #475569) 4px, transparent 4px, transparent 8px)`
+                        ? IDLE_GAP_GRADIENT
                         : barColor(seg),
                       borderRadius: isPoint ? "50%" : 4,
                       opacity: isIdleGap ? 0.35 : (isRunning && isIdle ? 0.5 : 0.9),
