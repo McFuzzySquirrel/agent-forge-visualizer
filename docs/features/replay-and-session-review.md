@@ -55,11 +55,11 @@
 ## 5. Implementation Tasks
 
 ### Phase 1: Replay Controls
-- [ ] Implement replay controls (play, pause, scrub, speed).
-- [ ] Implement timeline inspector and first-failure quick jump.
+- [x] Implement replay controls (play, pause, scrub, speed).
+- [x] Implement timeline inspector and first-failure quick jump.
 
 ### Phase 2: Ordering and Scale
-- [ ] Verify replay chronology parity with persisted logs.
+- [x] Verify replay chronology parity with persisted logs.
 
 ---
 

@@ -20,7 +20,7 @@
 
 **Feature Name:** Live Visualization Board  
 **ID Prefix:** LIVE  
-**Summary:** Delivers the real-time pixel-style operations board that visualizes active sessions, lanes, and state transitions with low-latency updates.  
+**Summary:** Delivers the real-time operations board that visualizes active sessions, lanes, and state transitions with low-latency updates.  
 **Dependencies:** Foundation Event Capture, Deterministic State Engine  
 **Priority:** Must
 
@@ -48,7 +48,7 @@
 
 ## 4. UI / Interaction Design
 
-- Pixel-art inspired live board with session, agent, subagent, and tool lanes.
+- Live board with session, agent, subagent, and tool lanes.
 - Status language:
   - Idle: neutral tile
   - Running: animated pulse/scan
@@ -62,11 +62,11 @@
 ## 5. Implementation Tasks
 
 ### Phase 1: Live Board Core
-- [ ] Implement live board with state lanes and status mapping.
-- [ ] Add event inspector and base filtering controls.
+- [x] Implement live board with state lanes and status mapping.
+- [x] Add event inspector and base filtering controls.
 
 ### Phase 2: Performance Validation
-- [ ] Validate responsiveness under sustained event volume.
+- [x] Validate responsiveness under sustained event volume.
 
 ---
 
