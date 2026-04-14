@@ -144,8 +144,10 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
 $VisualizerRoot = "${visualizerRoot}"
 $JsonlPath = Join-Path $RepoRoot ".visualizer" "logs" "events.jsonl"
-$HttpEndpoint = if ($env:VISUALIZER_HTTP_ENDPOINT) { $env:VISUALIZER_HTTP_ENDPOINT } else { "http://127.0.0.1:7070/events" }
-$StorePrompts = if ($env:VISUALIZER_STORE_PROMPTS) { $env:VISUALIZER_STORE_PROMPTS } else { "false" }
+$HttpEndpoint = "http://127.0.0.1:7070/events"
+if ($env:VISUALIZER_HTTP_ENDPOINT) { $HttpEndpoint = $env:VISUALIZER_HTTP_ENDPOINT }
+$StorePrompts = "false"
+if ($env:VISUALIZER_STORE_PROMPTS) { $StorePrompts = $env:VISUALIZER_STORE_PROMPTS }
 
 npx tsx "$VisualizerRoot/scripts/emit-event-cli.ts" \`
   --eventType $EventType \`
@@ -614,9 +616,9 @@ function buildEmitBlockPostToolUse(emitScriptRelPath: string, sessionSnippet: st
  */
 const STDIN_EXTRACTION_BLOCK_PS1 = [
   `# Read Copilot CLI context from stdin (JSON payload)`,
-  `$_vizStdin = try { $input | Out-String } catch { '{}' }`,
+  `try { $_vizStdin = $input | Out-String } catch { $_vizStdin = '{}' }`,
   `if (-not $_vizStdin) { $_vizStdin = '{}' }`,
-  `$_vizJson = try { $_vizStdin | ConvertFrom-Json } catch { $null }`,
+  `try { $_vizJson = $_vizStdin | ConvertFrom-Json } catch { $_vizJson = $null }`,
   // Single-line function: avoids standalone `}` that would break the ps1BlockPattern regex in unbootstrap
   `function _vizField([string[]]$names) { if (-not $_vizJson) { return '' }; foreach ($n in $names) { $v = $_vizJson.PSObject.Properties[$n]; if ($v -and $v.Value) { return [string]$v.Value } }; return '' }`,
   // Single-line helper for nested property access (e.g. "toolResult.resultType")
@@ -675,12 +677,14 @@ function buildEmitBlockPs1(emitScriptRelPath: string, eventType: string): string
     ``,
     `# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---`,
     STDIN_EXTRACTION_BLOCK_PS1,
-    `$_vizEmitScript = Join-Path $RepoRoot "${emitScriptRelPath}"`,
+    `$_vizScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path`,
+    `$_vizRepoRoot = (Resolve-Path (Join-Path $_vizScriptDir ".." ".." "..")).Path`,
+    `$_vizEmitScript = Join-Path $_vizRepoRoot "${emitScriptRelPath}"`,
     `if (Test-Path $_vizEmitScript) {`,
     `  try {`,
     `    $_vizPayload = ${payloadExpr}`,
     `    & $_vizEmitScript -EventType "${eventType}" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
-    `  } catch { }`,
+    `  } catch { <# visualizer emit errors are intentionally silenced #> }`,
     `}`,
   ].join("\n");
 }
@@ -691,7 +695,9 @@ function buildEmitBlockPs1PostToolUse(emitScriptRelPath: string): string {
     ``,
     `# --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---`,
     STDIN_EXTRACTION_BLOCK_PS1,
-    `$_vizEmitScript = Join-Path $RepoRoot "${emitScriptRelPath}"`,
+    `$_vizScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path`,
+    `$_vizRepoRoot = (Resolve-Path (Join-Path $_vizScriptDir ".." ".." "..")).Path`,
+    `$_vizEmitScript = Join-Path $_vizRepoRoot "${emitScriptRelPath}"`,
     `if (Test-Path $_vizEmitScript) {`,
     `  try {`,
     `    if ($env:STATUS -eq 'failure' -or $env:STATUS -eq 'denied') {`,
@@ -701,7 +707,7 @@ function buildEmitBlockPs1PostToolUse(emitScriptRelPath: string): string {
     `      $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)`,
     `      & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
     `    }`,
-    `  } catch { }`,
+    `  } catch { <# visualizer emit errors are intentionally silenced #> }`,
     `}`,
   ].join("\n");
 }
@@ -815,7 +821,7 @@ if (Test-Path $_vizEmitScript) {
   try {
     $_vizPayload = ${payloadExpr}
     & $_vizEmitScript -EventType "${eventType}" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
-  } catch { }
+  } catch { <# visualizer emit errors are intentionally silenced #> }
 }
 
 exit 0
@@ -846,7 +852,7 @@ if (Test-Path $_vizEmitScript) {
       $_vizPayload = (ConvertTo-Json @{ toolName = if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }; status = 'success' } -Compress)
       & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
     }
-  } catch { }
+  } catch { <# visualizer emit errors are intentionally silenced #> }
 }
 
 exit 0
