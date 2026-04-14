@@ -65,7 +65,8 @@ of hooks in action. Here's the architecture in a nutshell:
    to a local HTTP endpoint.
 3. The **ingest service** picks up events and feeds them through a deterministic
    state machine that tracks session, tool, and sub-agent states.
-4. The **web UI** renders the live state — a pixel-art operations board — and
+4. The **web UI** renders the live state as a dark-themed dashboard featuring a
+   Gantt chart timeline, lane-based activity board, and event inspector — and
    supports replay with timeline scrubbing.
 
 ### Lesson 1: Schema First, Always
@@ -306,8 +307,8 @@ Want to go deeper? Here are the official sources:
 
 The **Copilot Agent Activity Visualizer** is an open-source project that
 demonstrates these patterns in production-quality code. It captures Copilot CLI
-activity and renders it as a live pixel-art operations board with full session
-replay.
+activity and renders it as a live dashboard with a Gantt chart timeline,
+lane-based activity board, and full session replay.
 
 Check out the [README](../README.md) to get started, or dive into the
 [product vision](product-vision.md) for the full story.
