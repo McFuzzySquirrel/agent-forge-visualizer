@@ -41,8 +41,13 @@ additional *internal* event types that are synthesized from the hooks above:
 | Internal Event | How It's Produced | What It Represents |
 |----------------|-------------------|--------------------|
 | `postToolUseFailure` | Synthesized from `postToolUse` when `toolResult.resultType` is `"failure"` or `"denied"` | A tool that finished with an error |
-| `subagentStart` | Not currently triggered by any CLI hook | A sub-agent spinning up (reserved for future use) |
+| `subagentStart` | Synthesized from `task` tool completions (`postToolUse`/`postToolUseFailure`) when `toolArgs.agent_type` (or fallback task identity fields) is present | A sub-agent lane starting from task-dispatch metadata |
 | `notification` | Not currently triggered by any CLI hook | Informational notifications (reserved for future use) |
+
+In current integrations, we treat `agentStop` as the natural close signal for that synthesized sub-agent lane.
+
+See [ADR-006](adr/006-task-posttooluse-subagent-synthesis.md) for the
+heuristic change rationale and lifecycle timing details.
 
 > **Pro tip:** You don't need all of these. Start with `sessionStart`, `preToolUse`,
 > `postToolUse`, and `errorOccurred`. That alone gives you a surprisingly complete

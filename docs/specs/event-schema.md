@@ -55,7 +55,8 @@ future use:
 
 9. `postToolUseFailure` — synthesized from `postToolUse` when
    `toolResult.resultType` is `"failure"` or `"denied"`
-10. `subagentStart` — reserved for future use; no CLI hook exists
+10. `subagentStart` — synthesized from `task` `postToolUse` / `postToolUseFailure`
+  when `toolArgs.agent_type` (or fallback identity fields) is present
 11. `notification` — reserved for future use; no CLI hook exists
 
 See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
@@ -106,6 +107,12 @@ See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
 ```
 
 `taskDescription`, `message`, and `summary` are optional compatibility fields for integrations that can provide richer active-subagent context at start time.
+
+Current ingest synthesis heuristic:
+
+1. On `task` `postToolUse` / `postToolUseFailure`, if `toolArgs.agent_type` (or fallback fields like task name) is present, emit synthesized `subagentStart`.
+2. On `agentStop`, emit synthesized `subagentStop` for the active synthesized subagent lane.
+3. If a different task agent appears while one is active, close previous lane first, then start the new one.
 
 ### `notification`
 

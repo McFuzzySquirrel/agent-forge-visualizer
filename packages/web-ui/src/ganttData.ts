@@ -42,6 +42,15 @@ function toolNameFrom(payload: Record<string, unknown>): string {
   return typeof payload.toolName === "string" ? payload.toolName : "unknown";
 }
 
+/**
+ * Returns a copy of `payload` with all `undefined` values removed.
+ * Used when merging stop-event payloads into pre-existing start-event details
+ * so that undefined stop fields don't silently clear values captured at start.
+ */
+function withoutUndefined(payload: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined));
+}
+
 function agentNameFrom(payload: Record<string, unknown>): string {
   if (typeof payload.agentDisplayName === "string") return payload.agentDisplayName;
   if (typeof payload.agentName === "string") return payload.agentName;
@@ -168,7 +177,7 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
         if (open) {
           open.endTime = t;
           open.status = "succeeded";
-          open.details = { ...open.details, ...payload };
+            open.details = { ...open.details, ...withoutUndefined(payload) };
           openTools.delete(rowKey);
         }
         // Start idle gap after tool completes
@@ -182,7 +191,7 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
         if (open) {
           open.endTime = t;
           open.status = "failed";
-          open.details = { ...open.details, ...payload };
+            open.details = { ...open.details, ...withoutUndefined(payload) };
           openTools.delete(rowKey);
         }
         // Start idle gap after tool failure
@@ -219,7 +228,7 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
         if (open) {
           open.endTime = t;
           open.status = "succeeded";
-          open.details = { ...open.details, ...payload };
+            open.details = { ...open.details, ...withoutUndefined(payload) };
           openSubagents.delete(rowKey);
         }
         // Start idle gap after subagent stops

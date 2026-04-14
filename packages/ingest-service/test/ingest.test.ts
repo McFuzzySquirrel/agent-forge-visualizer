@@ -47,6 +47,161 @@ describe("ingestion inputs", () => {
     await server.close();
     await rm(dir, { recursive: true, force: true });
   });
+
+  it("synthesizes subagentStart before task postToolUse when agent_type is present", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ingest-task-start-"));
+    const jsonlPath = join(dir, "events.jsonl");
+
+    const server = await createIngestServer();
+    await server.listen({ host: "127.0.0.1", port: 0 });
+    const addr = server.server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    await emitEvent("postToolUse", {
+      toolName: "task",
+      status: "success",
+      toolArgs: {
+        agent_type: "project-architect",
+        name: "phase1-foundation",
+        description: "Execute phase 1.1"
+      }
+    } as Record<string, unknown>, {
+      jsonlPath,
+      repoPath: "/tmp/repo",
+      sessionId: "session-task-1",
+      httpEndpoint: `http://127.0.0.1:${port}/events`
+    });
+
+    const response = await fetch(`http://127.0.0.1:${port}/events`);
+    const body = (await response.json()) as { count: number; events: Array<{ eventType: string; payload: Record<string, unknown> }> };
+
+    expect(body.count).toBe(2);
+    expect(body.events[0]?.eventType).toBe("subagentStart");
+    expect(body.events[0]?.payload.agentName).toBe("project-architect");
+    expect(body.events[1]?.eventType).toBe("postToolUse");
+
+    await server.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("synthesizes subagentStop before agentStop when task agent is active", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ingest-task-stop-"));
+    const jsonlPath = join(dir, "events.jsonl");
+
+    const server = await createIngestServer();
+    await server.listen({ host: "127.0.0.1", port: 0 });
+    const addr = server.server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    const options = {
+      jsonlPath,
+      repoPath: "/tmp/repo",
+      sessionId: "session-task-2",
+      httpEndpoint: `http://127.0.0.1:${port}/events`
+    };
+
+    await emitEvent("postToolUse", {
+      toolName: "task",
+      status: "success",
+      toolArgs: { agent_type: "project-architect", description: "Execute phase 1.1" }
+    } as Record<string, unknown>, options);
+
+    await emitEvent("agentStop", {
+      message: "agent finished",
+      summary: "agent finished",
+    }, options);
+
+    const response = await fetch(`http://127.0.0.1:${port}/events`);
+    const body = (await response.json()) as { count: number; events: Array<{ eventType: string; payload: Record<string, unknown> }> };
+
+    expect(body.count).toBe(4);
+    expect(body.events.map((event) => event.eventType)).toEqual([
+      "subagentStart",
+      "postToolUse",
+      "subagentStop",
+      "agentStop",
+    ]);
+    expect(body.events[2]?.payload.agentName).toBe("project-architect");
+
+    await server.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("enriches agentStop payload with active task description when missing", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ingest-agentstop-desc-"));
+    const jsonlPath = join(dir, "events.jsonl");
+
+    const server = await createIngestServer();
+    await server.listen({ host: "127.0.0.1", port: 0 });
+    const addr = server.server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    const options = {
+      jsonlPath,
+      repoPath: "/tmp/repo",
+      sessionId: "session-task-3",
+      httpEndpoint: `http://127.0.0.1:${port}/events`
+    };
+
+    await emitEvent("postToolUse", {
+      toolName: "task",
+      status: "success",
+      toolArgs: { agent_type: "progression-systems-engineer", description: "Execute phase 1.3" }
+    } as Record<string, unknown>, options);
+
+    await emitEvent("agentStop", {
+      agentName: "progression-systems-engineer"
+    }, options);
+
+    const response = await fetch(`http://127.0.0.1:${port}/events`);
+    const body = (await response.json()) as { events: Array<{ eventType: string; payload: Record<string, unknown> }> };
+    const last = body.events[body.events.length - 1];
+
+    expect(last?.eventType).toBe("agentStop");
+    expect(last?.payload.taskDescription).toBe("Execute phase 1.3");
+    expect(last?.payload.description).toBe("Execute phase 1.3");
+    expect(last?.payload.message).toBe("Execute phase 1.3");
+    expect(last?.payload.summary).toBe("Execute phase 1.3");
+
+    await server.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("falls back to 'Completed' on synthesized subagentStop when no description available", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ingest-completed-fallback-"));
+    const jsonlPath = join(dir, "events.jsonl");
+
+    const server = await createIngestServer();
+    await server.listen({ host: "127.0.0.1", port: 0 });
+    const addr = server.server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    const options = {
+      jsonlPath,
+      repoPath: "/tmp/repo",
+      sessionId: "session-task-4",
+      httpEndpoint: `http://127.0.0.1:${port}/events`
+    };
+
+    // Task with no description field
+    await emitEvent("postToolUse", {
+      toolName: "task",
+      status: "success",
+      toolArgs: { agent_type: "qa-engineer" }
+    } as Record<string, unknown>, options);
+
+    await emitEvent("agentStop", { agentName: "qa-engineer" }, options);
+
+    const response = await fetch(`http://127.0.0.1:${port}/events`);
+    const body = (await response.json()) as { events: Array<{ eventType: string; payload: Record<string, unknown> }> };
+
+    // Find the synthesized subagentStop (index 2 in the 4-event sequence)
+    const subagentStop = body.events.find((e) => e.eventType === "subagentStop");
+    expect(subagentStop?.payload.taskDescription).toBe("Completed");
+
+    await server.close();
+    await rm(dir, { recursive: true, force: true });
+  });
 });
 
 describe("SSE /state/stream (LIVE-FR-01, LIVE-FR-03)", () => {

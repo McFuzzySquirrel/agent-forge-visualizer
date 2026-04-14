@@ -292,10 +292,13 @@ interface HookCommand {
   [key: string]: unknown;
 }
 
-const SUBAGENT_NAME_FALLBACK = "\${AGENT_NAME:-\${SUBAGENT_NAME:-\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPLAY_NAME:-\${TASK_DESC:-unknown}}}}}";
+const SUBAGENT_NAME_FALLBACK = "\${AGENT_NAME:-\${SUBAGENT_NAME:-\${AGENT_TYPE:-\${AGENT_TASK_NAME:-\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPLAY_NAME:-\${TASK_DESC:-unknown}}}}}}}";
 const SUBAGENT_DISPLAY_NAME_FALLBACK = "\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPLAY_NAME:-\${AGENT_NAME:-\${SUBAGENT_NAME:-\${TASK_DESC:-unknown}}}}}";
 const SUBAGENT_DETAIL_FALLBACK = "\${AGENT_DESCRIPTION:-\${SUBAGENT_DESCRIPTION:-\${TASK_DESC:-\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}}}}";
 const SUBAGENT_MESSAGE_FALLBACK = "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${TASK_DESC:-}}}}";
+const TOOL_CONTEXT_AGENT_FALLBACK = "\${AGENT_NAME:-\${SUBAGENT_NAME:-\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPLAY_NAME:-}}}}";
+const TOOL_CONTEXT_DISPLAY_NAME_FALLBACK = "\${AGENT_DISPLAY_NAME:-\${SUBAGENT_DISPLAY_NAME:-}}";
+const AGENT_ID_FALLBACK = "\${AGENT_ID:-\${SUBAGENT_ID:-}}";
 
 /**
  * Copilot CLI only supports 8 hook types. The following 3 event types are NOT
@@ -337,7 +340,7 @@ const HOOK_MAP: Record<string, HookMapping> = {
   },
   "subagent-stop.sh": {
     eventType: "subagentStop",
-    payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-}}}}" '{"agentName":$agent,"taskDescription":$task,"message":$message,"summary":$message,"result":$message}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-\${TASK_DESC:-}}}}}" '{"agentName":$agent,"taskDescription":$task,"description":$task,"message":$message,"summary":$message,"result":$message}' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "log-prompt.sh": {
@@ -347,7 +350,7 @@ const HOOK_MAP: Record<string, HookMapping> = {
   },
   "pre-tool-use.sh": {
     eventType: "preToolUse",
-    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg agent "${TOOL_CONTEXT_AGENT_FALLBACK}" --arg agentDisplay "${TOOL_CONTEXT_DISPLAY_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" --arg skill "\${SKILL_NAME:-}" --arg skillId "\${SKILL_ID:-}" --arg callId "\${TOOL_CALL_ID:-}" --arg toolArgsRaw "\${TOOL_ARGS:-}" '{"toolName":$tool} + (if ($toolArgsRaw|length)>0 then (try (($toolArgsRaw|fromjson) as $args | {"toolArgs":$args}) catch {"toolArgsText":$toolArgsRaw}) else {} end) + (if ($agent|length)>0 then {"agentName":$agent} else {} end) + (if ($agentDisplay|length)>0 then {"agentDisplayName":$agentDisplay} else {} end) + (if ($task|length)>0 then {"taskDescription":$task} else {} end) + (if ($message|length)>0 then {"message":$message} else {} end) + (if ($skill|length)>0 then {"skillName":$skill} else {} end) + (if ($skillId|length)>0 then {"skillId":$skillId} else {} end) + (if ($callId|length)>0 then {"toolCallId":$callId} else {} end)' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   // NOTE: This payloadSnippet is only used by buildStubScript and buildEmitBlock
@@ -356,12 +359,12 @@ const HOOK_MAP: Record<string, HookMapping> = {
   // this with proper success/failure routing based on toolResult.resultType.
   "post-tool-use.sh": {
     eventType: "postToolUse",
-    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg agent "${TOOL_CONTEXT_AGENT_FALLBACK}" --arg agentDisplay "${TOOL_CONTEXT_DISPLAY_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" --arg skill "\${SKILL_NAME:-}" --arg skillId "\${SKILL_ID:-}" --arg callId "\${TOOL_CALL_ID:-}" --arg toolArgsRaw "\${TOOL_ARGS:-}" '{"toolName":$tool,"status":"success"} + (if ($toolArgsRaw|length)>0 then (try (($toolArgsRaw|fromjson) as $args | {"toolArgs":$args}) catch {"toolArgsText":$toolArgsRaw}) else {} end) + (if ($agent|length)>0 then {"agentName":$agent} else {} end) + (if ($agentDisplay|length)>0 then {"agentDisplayName":$agentDisplay} else {} end) + (if ($task|length)>0 then {"taskDescription":$task} else {} end) + (if ($message|length)>0 then {"message":$message} else {} end) + (if ($skill|length)>0 then {"skillName":$skill} else {} end) + (if ($skillId|length)>0 then {"skillId":$skillId} else {} end) + (if ($callId|length)>0 then {"toolCallId":$callId} else {} end)' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "agent-stop.sh": {
     eventType: "agentStop",
-    payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg reason "\${REASON:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-}}}}" '{"agentName":$agent,"reason":$reason,"message":$message,"summary":$message}' 2>/dev/null || echo '{}')`,
+    payloadSnippet: `$(jq -nc --arg agent "${SUBAGENT_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg agentType "\${AGENT_TYPE:-}" --arg agentId "${AGENT_ID_FALLBACK}" --arg reason "\${REASON:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-\${RESULT:-\${TASK_DESC:-}}}}}" '{"agentName":$agent,"taskDescription":$task,"description":$task,"reason":$reason,"message":$message,"summary":$message} + (if ($agentType|length)>0 then {"agentType":$agentType} else {} end) + (if ($agentId|length)>0 then {"agentId":$agentId} else {} end)' 2>/dev/null || echo '{}')`,
     sessionSnippet: `"\${SESSION_ID:-run-$$}"`,
   },
   "error-occurred.sh": {
@@ -543,21 +546,28 @@ const STDIN_EXTRACTION_BLOCK = [
   `# Extract fields from stdin JSON into env vars (stdin fills unset vars)`,
   `: "\${TOOL_NAME:=$(_vjq '.tool_name // .toolName // empty')}"`,
   `: "\${SESSION_ID:=$(_vjq '.session_id // .sessionId // empty')}"`,
-  `: "\${AGENT_NAME:=$(_vjq '.agent_name // .agentName // .name // empty')}"`,
-  `: "\${SUBAGENT_NAME:=$(_vjq '.subagent_name // .agent_name // .agentName // empty')}"`,
-  `: "\${AGENT_DISPLAY_NAME:=$(_vjq '.agent_display_name // .agentDisplayName // .display_name // .displayName // empty')}"`,
-  `: "\${SUBAGENT_DISPLAY_NAME:=$(_vjq '.agent_display_name // .agentDisplayName // .display_name // .displayName // empty')}"`,
-  `: "\${AGENT_DESCRIPTION:=$(_vjq '.agent_description // .agentDescription // .description // empty')}"`,
-  `: "\${SUBAGENT_DESCRIPTION:=$(_vjq '.agent_description // .agentDescription // .description // empty')}"`,
-  `: "\${TASK_DESC:=$(_vjq '.task_description // .taskDescription // .task // empty')}"`,
-  `: "\${AGENT_MESSAGE:=$(_vjq '.message // empty')}"`,
-  `: "\${MESSAGE:=$(_vjq '.error.message // .message // empty')}"`,
-  `: "\${SUMMARY:=$(_vjq '.summary // empty')}"`,
+  `: "\${AGENT_NAME:=$(_vjq '.agent_name // .agentName // .agent.name // .agent.id // .agent.slug // .actor.name // .name // empty')}"`,
+  `: "\${AGENT_TYPE:=$(_vjq '.agent_type // .agentType // .toolArgs.agent_type // .tool_args.agent_type // empty')}"`,
+  `: "\${AGENT_TASK_NAME:=$(_vjq '.toolArgs.name // .tool_args.name // .task_name // .taskName // empty')}"`,
+  `: "\${SUBAGENT_NAME:=$(_vjq '.subagent_name // .subagentName // .subagent.name // .subagent.id // .agent_name // .agentName // .agent.name // empty')}"`,
+  `: "\${AGENT_ID:=$(_vjq '.agent_id // .agentId // .agent.id // .actor.id // empty')}"`,
+  `: "\${SUBAGENT_ID:=$(_vjq '.subagent_id // .subagentId // .subagent.id // empty')}"`,
+  `: "\${AGENT_DISPLAY_NAME:=$(_vjq '.agent_display_name // .agentDisplayName // .agent.display_name // .agent.displayName // .actor.display_name // .display_name // .displayName // empty')}"`,
+  `: "\${SUBAGENT_DISPLAY_NAME:=$(_vjq '.subagent_display_name // .subagentDisplayName // .subagent.display_name // .subagent.displayName // .agent_display_name // .agentDisplayName // .display_name // .displayName // empty')}"`,
+  `: "\${AGENT_DESCRIPTION:=$(_vjq '.agent_description // .agentDescription // .agent.description // .actor.description // .description // empty')}"`,
+  `: "\${SUBAGENT_DESCRIPTION:=$(_vjq '.subagent_description // .subagentDescription // .subagent.description // .agent_description // .agentDescription // .description // empty')}"`,
+  `: "\${TASK_DESC:=$(_vjq '.task_description // .taskDescription // .task // .toolArgs.description // .tool_args.description // empty')}"`,
+  `: "\${AGENT_MESSAGE:=$(_vjq '.agent.message // .agent.finalMessage // .agent.output.summary // .message // empty')}"`,
+  `: "\${MESSAGE:=$(_vjq '.error.message // .message // .output.message // .final_message // .finalMessage // empty')}"`,
+  `: "\${SUMMARY:=$(_vjq '.summary // .output.summary // .final_summary // .finalSummary // empty')}"`,
   `: "\${RESULT:=$(_vjq '.result // empty')}"`,
-  `: "\${REASON:=$(_vjq '.reason // empty')}"`,
+  `: "\${REASON:=$(_vjq '.reason // .stopReason // .stop_reason // .resultType // .status // empty')}"`,
   `: "\${STATUS:=$(_vjq '.toolResult.resultType // .status // .tool_status // empty')}"`,
   `: "\${ERROR_SUMMARY:=$(_vjq '.error.message // .error_summary // .errorSummary // empty')}"`,
   `: "\${TOOL_ARGS:=$(_vjq '.toolArgs // empty')}"`,
+  `: "\${SKILL_NAME:=$(_vjq '.skill_name // .skillName // .skill.name // .tool.skill.name // .toolResult.skill.name // empty')}"`,
+  `: "\${SKILL_ID:=$(_vjq '.skill_id // .skillId // .skill.id // .tool.skill.id // .toolResult.skill.id // empty')}"`,
+  `: "\${TOOL_CALL_ID:=$(_vjq '.tool_call_id // .toolCallId // .tool_use_id // .toolUseId // empty')}"`,
   `: "\${SOURCE:=$(_vjq '.source // empty')}"`,
   `: "\${PROMPT:=$(_vjq '.prompt // .user_prompt // empty')}"`,
   `: "\${NOTIFICATION_TYPE:=$(_vjq '.notification_type // .notificationType // empty')}"`,
@@ -597,10 +607,10 @@ function buildEmitBlockPostToolUse(emitScriptRelPath: string, sessionSnippet: st
     STDIN_EXTRACTION_BLOCK,
     `if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then`,
     `  if [ "\${STATUS}" = "failure" ] || [ "\${STATUS}" = "denied" ]; then`,
-    `    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg err "\${ERROR_SUMMARY:-}" '{"toolName":$tool,"status":"failure","errorSummary":$err}' 2>/dev/null || echo '{}')`,
+    `    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg err "\${ERROR_SUMMARY:-}" --arg agent "${TOOL_CONTEXT_AGENT_FALLBACK}" --arg agentDisplay "${TOOL_CONTEXT_DISPLAY_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" --arg skill "\${SKILL_NAME:-}" --arg skillId "\${SKILL_ID:-}" --arg callId "\${TOOL_CALL_ID:-}" --arg toolArgsRaw "\${TOOL_ARGS:-}" '{"toolName":$tool,"status":"failure","errorSummary":$err} + (if ($toolArgsRaw|length)>0 then (try (($toolArgsRaw|fromjson) as $args | {"toolArgs":$args}) catch {"toolArgsText":$toolArgsRaw}) else {} end) + (if ($agent|length)>0 then {"agentName":$agent} else {} end) + (if ($agentDisplay|length)>0 then {"agentDisplayName":$agentDisplay} else {} end) + (if ($task|length)>0 then {"taskDescription":$task} else {} end) + (if ($message|length)>0 then {"message":$message} else {} end) + (if ($skill|length)>0 then {"skillName":$skill} else {} end) + (if ($skillId|length)>0 then {"skillId":$skillId} else {} end) + (if ($callId|length)>0 then {"toolCallId":$callId} else {} end)' 2>/dev/null || echo '{}')`,
     `    "\${REPO_ROOT}/${emitScriptRelPath}" postToolUseFailure "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true`,
     `  else`,
-    `    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')`,
+    `    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg agent "${TOOL_CONTEXT_AGENT_FALLBACK}" --arg agentDisplay "${TOOL_CONTEXT_DISPLAY_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" --arg skill "\${SKILL_NAME:-}" --arg skillId "\${SKILL_ID:-}" --arg callId "\${TOOL_CALL_ID:-}" --arg toolArgsRaw "\${TOOL_ARGS:-}" '{"toolName":$tool,"status":"success"} + (if ($toolArgsRaw|length)>0 then (try (($toolArgsRaw|fromjson) as $args | {"toolArgs":$args}) catch {"toolArgsText":$toolArgsRaw}) else {} end) + (if ($agent|length)>0 then {"agentName":$agent} else {} end) + (if ($agentDisplay|length)>0 then {"agentDisplayName":$agentDisplay} else {} end) + (if ($task|length)>0 then {"taskDescription":$task} else {} end) + (if ($message|length)>0 then {"message":$message} else {} end) + (if ($skill|length)>0 then {"skillName":$skill} else {} end) + (if ($skillId|length)>0 then {"skillId":$skillId} else {} end) + (if ($callId|length)>0 then {"toolCallId":$callId} else {} end)' 2>/dev/null || echo '{}')`,
     `    "\${REPO_ROOT}/${emitScriptRelPath}" postToolUse "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true`,
     `  fi`,
     `fi`,
@@ -626,21 +636,28 @@ const STDIN_EXTRACTION_BLOCK_PS1 = [
   `# Extract fields from stdin JSON into env vars (stdin fills unset vars)`,
   `if (-not $env:TOOL_NAME)              { $env:TOOL_NAME = _vizField 'tool_name','toolName' }`,
   `if (-not $env:SESSION_ID)             { $env:SESSION_ID = _vizField 'session_id','sessionId' }`,
-  `if (-not $env:AGENT_NAME)             { $env:AGENT_NAME = _vizField 'agent_name','agentName','name' }`,
-  `if (-not $env:SUBAGENT_NAME)          { $env:SUBAGENT_NAME = _vizField 'subagent_name','agent_name','agentName' }`,
-  `if (-not $env:AGENT_DISPLAY_NAME)     { $env:AGENT_DISPLAY_NAME = _vizField 'agent_display_name','agentDisplayName','display_name','displayName' }`,
-  `if (-not $env:SUBAGENT_DISPLAY_NAME)  { $env:SUBAGENT_DISPLAY_NAME = _vizField 'agent_display_name','agentDisplayName','display_name','displayName' }`,
-  `if (-not $env:AGENT_DESCRIPTION)      { $env:AGENT_DESCRIPTION = _vizField 'agent_description','agentDescription','description' }`,
-  `if (-not $env:SUBAGENT_DESCRIPTION)   { $env:SUBAGENT_DESCRIPTION = _vizField 'agent_description','agentDescription','description' }`,
-  `if (-not $env:TASK_DESC)              { $env:TASK_DESC = _vizField 'task_description','taskDescription','task' }`,
-  `if (-not $env:AGENT_MESSAGE)          { $env:AGENT_MESSAGE = _vizField 'message' }`,
-  `if (-not $env:MESSAGE)                { $v = _vizNested 'error.message'; if ($v) { $env:MESSAGE = $v } else { $env:MESSAGE = _vizField 'message' } }`,
-  `if (-not $env:SUMMARY)                { $env:SUMMARY = _vizField 'summary' }`,
+  `if (-not $env:AGENT_NAME)             { $v = _vizNested 'agent.name'; if ($v) { $env:AGENT_NAME = $v } else { $v = _vizNested 'agent.id'; if ($v) { $env:AGENT_NAME = $v } else { $v = _vizNested 'agent.slug'; if ($v) { $env:AGENT_NAME = $v } else { $v = _vizNested 'actor.name'; if ($v) { $env:AGENT_NAME = $v } else { $env:AGENT_NAME = _vizField 'agent_name','agentName','name' } } } } }`,
+  `if (-not $env:AGENT_TYPE)             { $v = _vizNested 'toolArgs.agent_type'; if ($v) { $env:AGENT_TYPE = $v } else { $v = _vizNested 'tool_args.agent_type'; if ($v) { $env:AGENT_TYPE = $v } else { $env:AGENT_TYPE = _vizField 'agent_type','agentType' } } }`,
+  `if (-not $env:AGENT_TASK_NAME)        { $v = _vizNested 'toolArgs.name'; if ($v) { $env:AGENT_TASK_NAME = $v } else { $v = _vizNested 'tool_args.name'; if ($v) { $env:AGENT_TASK_NAME = $v } else { $env:AGENT_TASK_NAME = _vizField 'task_name','taskName' } } }`,
+  `if (-not $env:SUBAGENT_NAME)          { $v = _vizNested 'subagent.name'; if ($v) { $env:SUBAGENT_NAME = $v } else { $v = _vizNested 'subagent.id'; if ($v) { $env:SUBAGENT_NAME = $v } else { $env:SUBAGENT_NAME = _vizField 'subagent_name','subagentName','agent_name','agentName' } } }`,
+  `if (-not $env:AGENT_ID)               { $v = _vizNested 'agent.id'; if ($v) { $env:AGENT_ID = $v } else { $v = _vizNested 'actor.id'; if ($v) { $env:AGENT_ID = $v } else { $env:AGENT_ID = _vizField 'agent_id','agentId' } } }`,
+  `if (-not $env:SUBAGENT_ID)            { $v = _vizNested 'subagent.id'; if ($v) { $env:SUBAGENT_ID = $v } else { $env:SUBAGENT_ID = _vizField 'subagent_id','subagentId' } }`,
+  `if (-not $env:AGENT_DISPLAY_NAME)     { $v = _vizNested 'agent.display_name'; if ($v) { $env:AGENT_DISPLAY_NAME = $v } else { $v = _vizNested 'agent.displayName'; if ($v) { $env:AGENT_DISPLAY_NAME = $v } else { $v = _vizNested 'actor.display_name'; if ($v) { $env:AGENT_DISPLAY_NAME = $v } else { $env:AGENT_DISPLAY_NAME = _vizField 'agent_display_name','agentDisplayName','display_name','displayName' } } } }`,
+  `if (-not $env:SUBAGENT_DISPLAY_NAME)  { $v = _vizNested 'subagent.display_name'; if ($v) { $env:SUBAGENT_DISPLAY_NAME = $v } else { $v = _vizNested 'subagent.displayName'; if ($v) { $env:SUBAGENT_DISPLAY_NAME = $v } else { $env:SUBAGENT_DISPLAY_NAME = _vizField 'subagent_display_name','subagentDisplayName','agent_display_name','agentDisplayName','display_name','displayName' } } }`,
+  `if (-not $env:AGENT_DESCRIPTION)      { $v = _vizNested 'agent.description'; if ($v) { $env:AGENT_DESCRIPTION = $v } else { $v = _vizNested 'actor.description'; if ($v) { $env:AGENT_DESCRIPTION = $v } else { $env:AGENT_DESCRIPTION = _vizField 'agent_description','agentDescription','description' } } }`,
+  `if (-not $env:SUBAGENT_DESCRIPTION)   { $v = _vizNested 'subagent.description'; if ($v) { $env:SUBAGENT_DESCRIPTION = $v } else { $env:SUBAGENT_DESCRIPTION = _vizField 'subagent_description','subagentDescription','agent_description','agentDescription','description' } }`,
+  `if (-not $env:TASK_DESC)              { $v = _vizNested 'toolArgs.description'; if ($v) { $env:TASK_DESC = $v } else { $v = _vizNested 'tool_args.description'; if ($v) { $env:TASK_DESC = $v } else { $env:TASK_DESC = _vizField 'task_description','taskDescription','task' } } }`,
+  `if (-not $env:AGENT_MESSAGE)          { $v = _vizNested 'agent.message'; if ($v) { $env:AGENT_MESSAGE = $v } else { $v = _vizNested 'agent.finalMessage'; if ($v) { $env:AGENT_MESSAGE = $v } else { $v = _vizNested 'agent.output.summary'; if ($v) { $env:AGENT_MESSAGE = $v } else { $env:AGENT_MESSAGE = _vizField 'message' } } } }`,
+  `if (-not $env:MESSAGE)                { $v = _vizNested 'error.message'; if ($v) { $env:MESSAGE = $v } else { $v = _vizNested 'output.message'; if ($v) { $env:MESSAGE = $v } else { $v = _vizNested 'final_message'; if ($v) { $env:MESSAGE = $v } else { $v = _vizNested 'finalMessage'; if ($v) { $env:MESSAGE = $v } else { $env:MESSAGE = _vizField 'message' } } } } }`,
+  `if (-not $env:SUMMARY)                { $v = _vizNested 'output.summary'; if ($v) { $env:SUMMARY = $v } else { $v = _vizNested 'final_summary'; if ($v) { $env:SUMMARY = $v } else { $v = _vizNested 'finalSummary'; if ($v) { $env:SUMMARY = $v } else { $env:SUMMARY = _vizField 'summary' } } } }`,
   `if (-not $env:RESULT)                 { $env:RESULT = _vizField 'result' }`,
-  `if (-not $env:REASON)                 { $env:REASON = _vizField 'reason' }`,
+  `if (-not $env:REASON)                 { $v = _vizField 'reason','stopReason','stop_reason','resultType','status'; if ($v) { $env:REASON = $v } }`,
   `if (-not $env:STATUS)                 { $v = _vizNested 'toolResult.resultType'; if ($v) { $env:STATUS = $v } else { $env:STATUS = _vizField 'status','tool_status' } }`,
   `if (-not $env:ERROR_SUMMARY)          { $v = _vizNested 'error.message'; if ($v) { $env:ERROR_SUMMARY = $v } else { $env:ERROR_SUMMARY = _vizField 'error_summary','errorSummary' } }`,
   `if (-not $env:TOOL_ARGS)              { $env:TOOL_ARGS = _vizField 'toolArgs' }`,
+  `if (-not $env:SKILL_NAME)             { $v = _vizNested 'skill.name'; if ($v) { $env:SKILL_NAME = $v } else { $v = _vizNested 'tool.skill.name'; if ($v) { $env:SKILL_NAME = $v } else { $v = _vizNested 'toolResult.skill.name'; if ($v) { $env:SKILL_NAME = $v } else { $env:SKILL_NAME = _vizField 'skill_name','skillName' } } } }`,
+  `if (-not $env:SKILL_ID)               { $v = _vizNested 'skill.id'; if ($v) { $env:SKILL_ID = $v } else { $v = _vizNested 'tool.skill.id'; if ($v) { $env:SKILL_ID = $v } else { $v = _vizNested 'toolResult.skill.id'; if ($v) { $env:SKILL_ID = $v } else { $env:SKILL_ID = _vizField 'skill_id','skillId' } } } }`,
+  `if (-not $env:TOOL_CALL_ID)           { $env:TOOL_CALL_ID = _vizField 'tool_call_id','toolCallId','tool_use_id','toolUseId' }`,
   `if (-not $env:SOURCE)                 { $env:SOURCE = _vizField 'source' }`,
   `if (-not $env:PROMPT)                 { $env:PROMPT = _vizField 'prompt','user_prompt' }`,
   `if (-not $env:NOTIFICATION_TYPE)      { $env:NOTIFICATION_TYPE = _vizField 'notification_type','notificationType' }`,
@@ -652,15 +669,15 @@ const STDIN_EXTRACTION_BLOCK_PS1 = [
 const PS1_PAYLOAD_MAP: Record<string, { payloadSnippet: string; sessionSnippet: string }> = {
   sessionStart:        { payloadSnippet: `(ConvertTo-Json @{ source = $(if ($env:SOURCE) { $env:SOURCE } else { 'unknown' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   sessionEnd:          { payloadSnippet: `(ConvertTo-Json @{ reason = $(if ($env:REASON) { $env:REASON } else { 'unknown' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  subagentStop:        { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  subagentStop:        { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } else { 'unknown' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); description = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } elseif ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); summary = $(if ($env:SUMMARY) { $env:SUMMARY } elseif ($env:MESSAGE) { $env:MESSAGE } elseif ($env:TASK_DESC) { $env:TASK_DESC } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   userPromptSubmitted: { payloadSnippet: `(ConvertTo-Json @{ prompt = $(if ($env:PROMPT) { $env:PROMPT } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  preToolUse:          { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  preToolUse:          { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); toolArgs = $(if ($env:TOOL_ARGS) { try { $env:TOOL_ARGS | ConvertFrom-Json } catch { $env:TOOL_ARGS } } else { $null }); agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { '' }); agentDisplayName = $(if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { '' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); skillName = $(if ($env:SKILL_NAME) { $env:SKILL_NAME } else { '' }); skillId = $(if ($env:SKILL_ID) { $env:SKILL_ID } else { '' }); toolCallId = $(if ($env:TOOL_CALL_ID) { $env:TOOL_CALL_ID } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   // NOTE: postToolUse payloadSnippet is not used at runtime — the conditional
   // variants (buildStubScriptPs1PostToolUse / buildEmitBlockPs1PostToolUse)
   // override this with proper success/failure routing.
-  postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success' } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
-  agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { 'unknown' }); reason = $(if ($env:REASON) { $env:REASON } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); summary = $(if ($env:SUMMARY) { $env:SUMMARY } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  postToolUse:         { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success'; toolArgs = $(if ($env:TOOL_ARGS) { try { $env:TOOL_ARGS | ConvertFrom-Json } catch { $env:TOOL_ARGS } } else { $null }); agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { '' }); agentDisplayName = $(if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { '' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); skillName = $(if ($env:SKILL_NAME) { $env:SKILL_NAME } else { '' }); skillId = $(if ($env:SKILL_ID) { $env:SKILL_ID } else { '' }); toolCallId = $(if ($env:TOOL_CALL_ID) { $env:TOOL_CALL_ID } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  postToolUseFailure:  { payloadSnippet: `(ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }); toolArgs = $(if ($env:TOOL_ARGS) { try { $env:TOOL_ARGS | ConvertFrom-Json } catch { $env:TOOL_ARGS } } else { $null }); agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { '' }); agentDisplayName = $(if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { '' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); skillName = $(if ($env:SKILL_NAME) { $env:SKILL_NAME } else { '' }); skillId = $(if ($env:SKILL_ID) { $env:SKILL_ID } else { '' }); toolCallId = $(if ($env:TOOL_CALL_ID) { $env:TOOL_CALL_ID } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
+  agentStop:           { payloadSnippet: `(ConvertTo-Json @{ agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_TYPE) { $env:AGENT_TYPE } elseif ($env:AGENT_TASK_NAME) { $env:AGENT_TASK_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { 'unknown' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); description = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); agentType = $(if ($env:AGENT_TYPE) { $env:AGENT_TYPE } else { '' }); agentId = $(if ($env:AGENT_ID) { $env:AGENT_ID } elseif ($env:SUBAGENT_ID) { $env:SUBAGENT_ID } else { '' }); reason = $(if ($env:REASON) { $env:REASON } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } elseif ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); summary = $(if ($env:SUMMARY) { $env:SUMMARY } elseif ($env:MESSAGE) { $env:MESSAGE } elseif ($env:TASK_DESC) { $env:TASK_DESC } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
   errorOccurred:       { payloadSnippet: `(ConvertTo-Json @{ message = $(if ($env:MESSAGE) { $env:MESSAGE } else { 'unknown error' }); code = $(if ($env:CODE) { $env:CODE } else { '' }) } -Compress)`, sessionSnippet: `$(if ($env:SESSION_ID) { $env:SESSION_ID } else { "run-$PID" })` },
 };
 
@@ -701,10 +718,10 @@ function buildEmitBlockPs1PostToolUse(emitScriptRelPath: string): string {
     `if (Test-Path $_vizEmitScript) {`,
     `  try {`,
     `    if ($env:STATUS -eq 'failure' -or $env:STATUS -eq 'denied') {`,
-    `      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }) } -Compress)`,
+    `      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }); toolArgs = $(if ($env:TOOL_ARGS) { try { $env:TOOL_ARGS | ConvertFrom-Json } catch { $env:TOOL_ARGS } } else { $null }); agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { '' }); agentDisplayName = $(if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { '' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); skillName = $(if ($env:SKILL_NAME) { $env:SKILL_NAME } else { '' }); skillId = $(if ($env:SKILL_ID) { $env:SKILL_ID } else { '' }); toolCallId = $(if ($env:TOOL_CALL_ID) { $env:TOOL_CALL_ID } else { '' }) } -Compress)`,
     `      & $_vizEmitScript -EventType "postToolUseFailure" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
     `    } else {`,
-    `      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success' } -Compress)`,
+    `      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success'; toolArgs = $(if ($env:TOOL_ARGS) { try { $env:TOOL_ARGS | ConvertFrom-Json } catch { $env:TOOL_ARGS } } else { $null }); agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { '' }); agentDisplayName = $(if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { '' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); skillName = $(if ($env:SKILL_NAME) { $env:SKILL_NAME } else { '' }); skillId = $(if ($env:SKILL_ID) { $env:SKILL_ID } else { '' }); toolCallId = $(if ($env:TOOL_CALL_ID) { $env:TOOL_CALL_ID } else { '' }) } -Compress)`,
     `      & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null`,
     `    }`,
     `  } catch { <# visualizer emit errors are intentionally silenced #> }`,
@@ -784,10 +801,10 @@ ${STDIN_EXTRACTION_BLOCK}
 # --- Visualizer emit (auto-wired by bootstrap-existing-repo) ---
 if [ -x "\${REPO_ROOT}/${emitScriptRelPath}" ]; then
   if [ "\${STATUS}" = "failure" ] || [ "\${STATUS}" = "denied" ]; then
-    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg err "\${ERROR_SUMMARY:-}" '{"toolName":$tool,"status":"failure","errorSummary":$err}' 2>/dev/null || echo '{}')
+    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg err "\${ERROR_SUMMARY:-}" --arg agent "${TOOL_CONTEXT_AGENT_FALLBACK}" --arg agentDisplay "${TOOL_CONTEXT_DISPLAY_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" --arg skill "\${SKILL_NAME:-}" --arg skillId "\${SKILL_ID:-}" --arg callId "\${TOOL_CALL_ID:-}" --arg toolArgsRaw "\${TOOL_ARGS:-}" '{"toolName":$tool,"status":"failure","errorSummary":$err} + (if ($toolArgsRaw|length)>0 then (try (($toolArgsRaw|fromjson) as $args | {"toolArgs":$args}) catch {"toolArgsText":$toolArgsRaw}) else {} end) + (if ($agent|length)>0 then {"agentName":$agent} else {} end) + (if ($agentDisplay|length)>0 then {"agentDisplayName":$agentDisplay} else {} end) + (if ($task|length)>0 then {"taskDescription":$task} else {} end) + (if ($message|length)>0 then {"message":$message} else {} end) + (if ($skill|length)>0 then {"skillName":$skill} else {} end) + (if ($skillId|length)>0 then {"skillId":$skillId} else {} end) + (if ($callId|length)>0 then {"toolCallId":$callId} else {} end)' 2>/dev/null || echo '{}')
     "\${REPO_ROOT}/${emitScriptRelPath}" postToolUseFailure "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true
   else
-    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" '{"toolName":$tool,"status":"success"}' 2>/dev/null || echo '{}')
+    _VIZ_PAYLOAD=$(jq -nc --arg tool "\${TOOL_NAME:-unknown}" --arg agent "${TOOL_CONTEXT_AGENT_FALLBACK}" --arg agentDisplay "${TOOL_CONTEXT_DISPLAY_NAME_FALLBACK}" --arg task "\${TASK_DESC:-}" --arg message "\${AGENT_MESSAGE:-\${MESSAGE:-\${SUMMARY:-}}}" --arg skill "\${SKILL_NAME:-}" --arg skillId "\${SKILL_ID:-}" --arg callId "\${TOOL_CALL_ID:-}" --arg toolArgsRaw "\${TOOL_ARGS:-}" '{"toolName":$tool,"status":"success"} + (if ($toolArgsRaw|length)>0 then (try (($toolArgsRaw|fromjson) as $args | {"toolArgs":$args}) catch {"toolArgsText":$toolArgsRaw}) else {} end) + (if ($agent|length)>0 then {"agentName":$agent} else {} end) + (if ($agentDisplay|length)>0 then {"agentDisplayName":$agentDisplay} else {} end) + (if ($task|length)>0 then {"taskDescription":$task} else {} end) + (if ($message|length)>0 then {"message":$message} else {} end) + (if ($skill|length)>0 then {"skillName":$skill} else {} end) + (if ($skillId|length)>0 then {"skillId":$skillId} else {} end) + (if ($callId|length)>0 then {"toolCallId":$callId} else {} end)' 2>/dev/null || echo '{}')
     "\${REPO_ROOT}/${emitScriptRelPath}" postToolUse "\${_VIZ_PAYLOAD}" ${sessionSnippet} >&2 || true
   fi
 fi
@@ -846,10 +863,10 @@ $_vizEmitScript = Join-Path $RepoRoot "${emitScriptRelPath}"
 if (Test-Path $_vizEmitScript) {
   try {
     if ($env:STATUS -eq 'failure' -or $env:STATUS -eq 'denied') {
-      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }) } -Compress)
+      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'failure'; errorSummary = $(if ($env:ERROR_SUMMARY) { $env:ERROR_SUMMARY } else { '' }); toolArgs = $(if ($env:TOOL_ARGS) { try { $env:TOOL_ARGS | ConvertFrom-Json } catch { $env:TOOL_ARGS } } else { $null }); agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { '' }); agentDisplayName = $(if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { '' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); skillName = $(if ($env:SKILL_NAME) { $env:SKILL_NAME } else { '' }); skillId = $(if ($env:SKILL_ID) { $env:SKILL_ID } else { '' }); toolCallId = $(if ($env:TOOL_CALL_ID) { $env:TOOL_CALL_ID } else { '' }) } -Compress)
       & $_vizEmitScript -EventType "postToolUseFailure" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
     } else {
-      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success' } -Compress)
+      $_vizPayload = (ConvertTo-Json @{ toolName = $(if ($env:TOOL_NAME) { $env:TOOL_NAME } else { 'unknown' }); status = 'success'; toolArgs = $(if ($env:TOOL_ARGS) { try { $env:TOOL_ARGS | ConvertFrom-Json } catch { $env:TOOL_ARGS } } else { $null }); agentName = $(if ($env:AGENT_NAME) { $env:AGENT_NAME } elseif ($env:SUBAGENT_NAME) { $env:SUBAGENT_NAME } elseif ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } else { '' }); agentDisplayName = $(if ($env:AGENT_DISPLAY_NAME) { $env:AGENT_DISPLAY_NAME } elseif ($env:SUBAGENT_DISPLAY_NAME) { $env:SUBAGENT_DISPLAY_NAME } else { '' }); taskDescription = $(if ($env:TASK_DESC) { $env:TASK_DESC } else { '' }); message = $(if ($env:AGENT_MESSAGE) { $env:AGENT_MESSAGE } elseif ($env:MESSAGE) { $env:MESSAGE } else { '' }); skillName = $(if ($env:SKILL_NAME) { $env:SKILL_NAME } else { '' }); skillId = $(if ($env:SKILL_ID) { $env:SKILL_ID } else { '' }); toolCallId = $(if ($env:TOOL_CALL_ID) { $env:TOOL_CALL_ID } else { '' }) } -Compress)
       & $_vizEmitScript -EventType "postToolUse" -Payload $_vizPayload -SessionId ${sessionExpr} 2>&1 | Out-Null
     }
   } catch { <# visualizer emit errors are intentionally silenced #> }

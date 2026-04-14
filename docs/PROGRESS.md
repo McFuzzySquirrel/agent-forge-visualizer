@@ -9,6 +9,33 @@
 
 All five planned features are complete and validated locally. Integration tooling (bootstrap/unbootstrap) has been added post-MVP. Live board UI polish has been applied.
 
+## Agent Lifecycle Synthesis Learnings (Post-MVP)
+
+### Implemented Deliverables
+
+- Updated ingest synthesis timing to better match observed runtime payload quality.
+- Synthesized `subagentStart` now fires from `task` `postToolUse` / `postToolUseFailure` when `toolArgs.agent_type` (or fallback identity fields) is present.
+- Synthesized `subagentStop` now fires on `agentStop` for the active synthesized lane.
+- Added switch-agent handling: if a different task agent appears while one is active, ingest closes the previous synthesized lane before starting the new one.
+- Extended hook extraction fallbacks for sparse `agentStop` payloads, including support for `agent_type` and task-name fallback identity.
+- Documented rationale and consequences in ADR-006.
+
+### Files Added/Updated
+
+- packages/ingest-service/src/index.ts
+- packages/ingest-service/test/ingest.test.ts
+- scripts/bootstrap-existing-repo.ts
+- docs/adr/006-task-posttooluse-subagent-synthesis.md
+- docs/hooked-on-hooks.md
+- docs/specs/event-schema.md
+- README.md
+
+### Notes
+
+- Existing target repos need a refresh cycle to pick up generated hook updates:
+      `npm run unbootstrap:repo -- /path/to/repo --apply` then
+      `npm run bootstrap:repo -- /path/to/repo --create-hooks`.
+
 ## UI Improvements (Post-MVP)
 
 ### Implemented Deliverables

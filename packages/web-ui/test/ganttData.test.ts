@@ -135,6 +135,27 @@ describe("buildGanttData", () => {
     expect(buildGanttData([])).toEqual([]);
   });
 });
+    it("preserves taskDescription from subagentStart when subagentStop has undefined taskDescription", () => {
+      const events: EventEnvelope[] = [
+        makeEvent("sessionStart", {}),
+        makeEvent("subagentStart", {
+          agentName: "qa-engineer",
+          taskDescription: "Run full test suite",
+          message: "Run full test suite",
+          summary: "Run full test suite",
+        }),
+        makeEvent("subagentStop", { agentName: "qa-engineer" }),
+      ];
+      const rows = buildGanttData(events);
+      const agentRow = rows.find((r) => r.rowId === "subagent:qa-engineer");
+
+      expect(agentRow).toBeDefined();
+      const seg = agentRow!.segments[0];
+      expect(seg.status).toBe("succeeded");
+      expect(seg.details.taskDescription).toBe("Run full test suite");
+      expect(seg.details.message).toBe("Run full test suite");
+      expect(seg.details.summary).toBe("Run full test suite");
+    });
 
 // ---------------------------------------------------------------------------
 // computeTimeRange

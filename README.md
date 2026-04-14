@@ -26,6 +26,8 @@ The project is complete for the planned MVP scope:
 - Bulk filter controls (Select All / Clear All) for event type checkboxes
 - Redaction and retention controls with safe defaults
 - Existing-repo bootstrap with automatic hook wiring for common lifecycle scripts
+- Enriched tool event payloads (when provided by host hooks): tool args, agent context, and optional skill metadata
+- Synthesized subagent lifecycle from task dispatch metadata (`toolArgs.agent_type`): start on task completion, stop on `agentStop`
 
 ## Getting Started
 
