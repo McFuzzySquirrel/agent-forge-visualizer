@@ -57,11 +57,11 @@
 ## 5. Implementation Tasks
 
 ### Phase 1: Privacy Hardening
-- [ ] Enforce redaction middleware pre-persist and pre-export.
-- [ ] Implement retention modes and purge command.
+- [x] Enforce redaction middleware pre-persist and pre-export.
+- [x] Implement retention modes and purge command.
 
 ### Phase 2: Packaging and Safe Defaults
-- [ ] Package and document install-to-first-live-flow under 10 minutes with export disabled by default.
+- [x] Package and document install-to-first-live-flow under 10 minutes with export disabled by default.
 
 ---
 

@@ -15,6 +15,7 @@
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-04-12 | GitHub Copilot | Initial product vision decomposed from [docs/prd.md](prd.md) |
+| 1.1 | 2026-04-14 | GitHub Copilot | Post-MVP alignment: updated TypeScript version to match installed 5.x, all five MVP features marked complete |
 
 ---
 
@@ -70,7 +71,7 @@
 | Layer | Technology | Version Guidance | Rationale |
 |------|------------|------------------|-----------|
 | Runtime | Node.js | 24.x LTS baseline | Stability and active support window |
-| Language | TypeScript | 6.x | Type-safe event contracts and state logic |
+| Language | TypeScript | 5.x | Type-safe event contracts and state logic |
 | CLI Hook Emitter | Shell + Node scripts | N/A | Direct compatibility with Copilot CLI hooks |
 | Ingestion API | Fastify (locked) | 5.x | Lightweight, high-throughput local endpoint; selected as fixed MVP backend framework |
 | Validation | Zod | 4.x | Runtime schema validation and inference |

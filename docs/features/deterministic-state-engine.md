@@ -51,12 +51,12 @@ This feature does not own UI components directly; it exposes state snapshots and
 ## 5. Implementation Tasks
 
 ### Phase 1: Ingestion and State Core
-- [ ] Build ingestion service (file watcher plus parser).
-- [ ] Implement deterministic session/agent/subagent/tool state machine.
+- [x] Build ingestion service (file watcher plus parser).
+- [x] Implement deterministic session/agent/subagent/tool state machine.
 
 ### Phase 2: Recovery and Reliability
-- [ ] Add restart recovery from persisted logs.
-- [ ] Validate latency and reliability on representative local runs.
+- [x] Add restart recovery from persisted logs.
+- [x] Validate latency and reliability on representative local runs.
 
 ---
 

@@ -5,9 +5,51 @@
 **Mode**: Feature-Based Build  
 **Product Vision**: docs/product-vision.md  
 **Status**: Complete  
-**Last Updated**: 2026-04-12
+**Last Updated**: 2026-04-14
 
-All five planned features are complete and validated locally.
+All five planned features are complete and validated locally. Integration tooling (bootstrap/unbootstrap) has been added post-MVP.
+
+## Integration Tooling (Post-MVP)
+
+### Implemented Deliverables
+
+- One-command bootstrap for existing repos (`npm run bootstrap:repo`).
+- Clean unbootstrap removal (`npm run unbootstrap:repo`).
+- Auto-wiring of hook scripts and JSON manifests in `.github/hooks/` (including subdirectories).
+- Stub hook generation with `--create-hooks` for repos without existing hooks.
+- Prefixed hook naming with `--prefix` to avoid filename collisions.
+- Dry-run mode for unbootstrap (default, no changes until `--apply`).
+- JSONL replay command (`npm run replay:jsonl`) for offline recovery.
+- Smoke end-to-end command (`npm run smoke:e2e`).
+
+### Files Added/Updated
+
+- scripts/bootstrap-existing-repo.ts
+- scripts/unbootstrap-existing-repo.ts
+- scripts/emit-event-cli.ts
+- scripts/replay-jsonl.ts
+- scripts/smoke-e2e.ts
+- scripts/test/bootstrap.test.ts (15 tests)
+- scripts/test/unbootstrap.test.ts (7 tests)
+- README.md (updated with bootstrap/unbootstrap docs)
+
+### Current Test Summary
+
+```
+✓ packages/hook-emitter/test/emitter.test.ts       (3 tests)
+✓ packages/web-ui/test/replay.test.ts              (7 tests)
+✓ packages/ingest-service/test/ingest.test.ts      (6 tests)
+✓ shared/redaction/test/redaction.test.ts          (37 tests)
+✓ shared/event-schema/test/schema.test.ts           (4 tests)
+✓ shared/state-machine/test/state-machine.test.ts  (18 tests)
+✓ packages/web-ui/test/stateMapping.test.ts        (17 tests)
+✓ scripts/test/bootstrap.test.ts                   (15 tests)
+✓ packages/web-ui/test/filterState.test.ts         (15 tests)
+✓ scripts/test/unbootstrap.test.ts                  (7 tests)
+Test Files  10 passed (10)
+      Tests  129 passed (129)
+Coverage: lines 90.78%+
+```
 
 ## Feature Progress
 

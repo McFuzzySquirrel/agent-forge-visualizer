@@ -59,13 +59,13 @@ This feature has no end-user screen ownership. It provides foundational event pl
 ## 5. Implementation Tasks
 
 ### Phase 1: Foundation and Event Capture
-- [ ] Initialize workspace scaffolding and CI baseline.
-- [ ] Implement hook configuration for targeted Copilot CLI lifecycle events.
-- [ ] Emit schema-compliant JSONL events.
-- [ ] Add schema validation and malformed-record handling.
+- [x] Initialize workspace scaffolding and CI baseline.
+- [x] Implement hook configuration for targeted Copilot CLI lifecycle events.
+- [x] Emit schema-compliant JSONL events.
+- [x] Add schema validation and malformed-record handling.
 
 ### Phase 2: Integration Readiness
-- [ ] Publish optional integration guide for Agent Forge and EJS metadata overlays.
+- [x] Publish optional integration guide for Agent Forge and EJS metadata overlays.
 
 ---
 

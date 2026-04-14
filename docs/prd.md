@@ -15,6 +15,7 @@
 |---------|------|--------|---------|
 | 1.0 | 2026-04-12 | GitHub Copilot | Initial PRD from product vision, architecture research, schema, privacy spec, roadmap, and ADR-001 |
 | 1.1 | 2026-04-12 | GitHub Copilot | Finalized MVP decisions: include Windows support, prompt storage opt-in only, lock ingest service on Fastify |
+| 1.2 | 2026-04-14 | GitHub Copilot | Post-MVP alignment: updated TypeScript version to match installed 5.x, replaced pixel-art UI references with accurate descriptions, marked all implementation phases complete, added bootstrap/unbootstrap tooling |
 
 ---
 
@@ -80,7 +81,7 @@
 | Technology | Observed Stable Version | Status | Notes for PRD |
 |------------|-------------------------|--------|---------------|
 | Node.js | 24.14.1 (Latest LTS), 25.9.0 (Current) | Active | Use Node 24 LTS baseline for production stability |
-| TypeScript | 6.0.2 | Active | Plan for TS 6 strict mode; older TS 5 configs may need migration |
+| TypeScript | 5.9.3 | Active | TS 5.x strict mode enabled across all workspace packages |
 | React | 19.2.5 | Active | React 19 APIs should be baseline for UI |
 | Vite | 8.0.8 | Active | Verify plugin compatibility if upgrading from earlier major versions |
 | Fastify | 5.8.4 | Active | Fastify v3 and lower are EOL; do not target legacy versions |
@@ -118,7 +119,7 @@
 | Layer | Technology | Version Guidance | Rationale |
 |------|------------|------------------|-----------|
 | Runtime | Node.js | 24.x LTS baseline | Stability and active support window |
-| Language | TypeScript | 6.x | Type-safe event contracts and state logic |
+| Language | TypeScript | 5.x | Type-safe event contracts and state logic |
 | CLI Hook Emitter | Shell + Node scripts | N/A | Direct compatibility with Copilot CLI hooks |
 | Ingestion API | Fastify (locked) | 5.x | Lightweight, high-throughput local endpoint; selected as fixed MVP backend framework |
 | Validation | Zod | 4.x | Runtime schema validation and inference |
@@ -137,6 +138,7 @@ agent-forge-visualizer/
   docs/
     prd.md
     product-vision.md
+    features/
     adr/
     research/
     roadmap/
@@ -156,6 +158,13 @@ agent-forge-visualizer/
     redaction/
     state-machine/
   scripts/
+    bootstrap-existing-repo.ts
+    unbootstrap-existing-repo.ts
+    emit-event-cli.ts
+    replay-jsonl.ts
+    smoke-e2e.ts
+    configure-hooks.ts
+    test/
   .github/
 ```
 
@@ -269,7 +278,7 @@ Compliance position (MVP): no explicit regulated domain target is declared yet; 
 
 ## 12. User Interface / Interaction Design
 
-- Pixel-art inspired operations board with distinct lanes for session, agent, subagent, and tool states.
+- Operations board with distinct lanes for session, agent, subagent, and tool states.
 - Two primary modes: Live mode and Replay mode.
 - Live mode focuses on currently running steps, latest events, and immediate failures.
 - Replay mode provides timeline scrubbing, speed controls, and event inspector details.
@@ -310,32 +319,39 @@ Compliance position (MVP): no explicit regulated domain target is declared yet; 
 ## 14. Implementation Phases
 
 ### Phase 1: Foundation and Event Capture
-- [ ] Initialize workspace scaffolding and CI baseline.
-- [ ] Implement hook configuration for targeted Copilot CLI lifecycle events.
-- [ ] Emit schema-compliant JSONL events.
-- [ ] Add schema validation and malformed-record handling.
+- [x] Initialize workspace scaffolding and CI baseline.
+- [x] Implement hook configuration for targeted Copilot CLI lifecycle events.
+- [x] Emit schema-compliant JSONL events.
+- [x] Add schema validation and malformed-record handling.
 
 ### Phase 2: Ingestion and Deterministic State Engine
-- [ ] Build ingestion service (file watcher plus parser).
-- [ ] Implement deterministic session/agent/subagent/tool state machine.
-- [ ] Add restart recovery from persisted logs.
-- [ ] Validate latency and reliability on representative local runs.
+- [x] Build ingestion service (file watcher plus parser).
+- [x] Implement deterministic session/agent/subagent/tool state machine.
+- [x] Add restart recovery from persisted logs.
+- [x] Validate latency and reliability on representative local runs.
 
-### Phase 3: Live Pixel Visualization UI
-- [ ] Implement live board with state lanes and status mapping.
-- [ ] Add event inspector and base filtering controls.
-- [ ] Validate responsiveness under sustained event volume.
+### Phase 3: Live Visualization UI
+- [x] Implement live board with state lanes and status mapping.
+- [x] Add event inspector and base filtering controls.
+- [x] Validate responsiveness under sustained event volume.
 
 ### Phase 4: Replay and Session Review
-- [ ] Implement replay controls (play, pause, scrub, speed).
-- [ ] Implement timeline inspector and first-failure quick jump.
-- [ ] Verify replay chronology parity with persisted logs.
+- [x] Implement replay controls (play, pause, scrub, speed).
+- [x] Implement timeline inspector and first-failure quick jump.
+- [x] Verify replay chronology parity with persisted logs.
 
 ### Phase 5: Privacy Hardening and Packaging
-- [ ] Enforce redaction middleware pre-persist and pre-export.
-- [ ] Implement retention modes and purge command.
-- [ ] Package and document install-to-first-live-flow under 10 minutes.
-- [ ] Publish optional integration guide for Agent Forge and EJS metadata overlays.
+- [x] Enforce redaction middleware pre-persist and pre-export.
+- [x] Implement retention modes and purge command.
+- [x] Package and document install-to-first-live-flow under 10 minutes.
+- [x] Publish optional integration guide for Agent Forge and EJS metadata overlays.
+
+### Phase 6: Integration Tooling (Post-MVP)
+- [x] Bootstrap command for one-step existing-repo integration.
+- [x] Unbootstrap command for clean removal of integration artifacts.
+- [x] Auto-wiring of hook scripts and JSON manifests.
+- [x] Stub hook generation with `--create-hooks` flag.
+- [x] Prefixed hook naming with `--prefix` flag.
 
 ---
 
