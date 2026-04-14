@@ -818,7 +818,6 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
 
   if (finalCoveredEvents.size === 0 && !createHooks) {
     console.log("\n⚠️  No hook scripts matched any known lifecycle event type.");
-    console.log("The visualizer manifest was not created because there are no events to declare.");
     console.log("Tip: re-run with --create-hooks to generate stub hooks for all 11 event types.");
   }
 
