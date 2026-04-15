@@ -148,8 +148,9 @@ function collapseRepeatedSegments(segments: GanttSegment[]): {
       }
     }
 
-    // Push any running/non-completed segments that broke the run
-    if (runEnd < segments.length && (segments[runEnd].endTime === null || segments[runEnd].status === "running")) {
+    // Push any running/non-completed segments that broke the run.
+    // Check endTime === null (the canonical "still open" indicator).
+    if (runEnd < segments.length && segments[runEnd].endTime === null) {
       visible.push(segments[runEnd]);
       runEnd++;
     }

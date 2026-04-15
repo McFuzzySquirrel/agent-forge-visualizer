@@ -47,6 +47,14 @@ function statusIcon(seg: GanttSegment, isLatestRunning: boolean): string | null 
   return null;
 }
 
+/** Compute bar opacity based on segment state. */
+function barOpacity(seg: GanttSegment, isIdleGap: boolean, isOrphanedRunning: boolean, isRunning: boolean, isIdle: boolean): number {
+  if (isIdleGap) return 0.35;
+  if (isOrphanedRunning) return 0.55;
+  if (isRunning && isIdle) return 0.5;
+  return 0.9;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Tooltip                                                            */
 /* ------------------------------------------------------------------ */
@@ -409,7 +417,7 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                         ? IDLE_GAP_GRADIENT
                         : barColor(seg),
                       borderRadius: isPoint ? "50%" : 4,
-                      opacity: isIdleGap ? 0.35 : (isOrphanedRunning ? 0.55 : (isRunning && isIdle ? 0.5 : 0.9)),
+                      opacity: barOpacity(seg, isIdleGap, isOrphanedRunning, isRunning, !!isIdle),
                       cursor: "pointer",
                       transition: isRunning ? "none" : "width 0.3s ease",
                       animation: shouldAnimate
