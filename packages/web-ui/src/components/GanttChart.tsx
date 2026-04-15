@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { GanttRow, GanttSegment } from "../ganttData.js";
-import { computeTimeRange } from "../ganttData.js";
+import { computeTimeRange, findLatestRunningSegmentId } from "../ganttData.js";
 
 /* ------------------------------------------------------------------ */
 /*  Style constants                                                    */
@@ -27,11 +27,24 @@ const CATEGORY_COLORS: Record<GanttSegment["category"], string> = {
   prompt: "var(--gantt-prompt, #06b6d4)",
 };
 
+/**
+ * R2: Bar colour is determined by CATEGORY, not status.
+ * Status is communicated via icon overlays instead.
+ */
 function barColor(seg: GanttSegment): string {
   if (seg.status === "failed") return "var(--gantt-tool-failed, #ef4444)";
-  if (seg.status === "running") return "var(--gantt-tool-running, #f59e0b)";
   if (seg.status === "idle") return "var(--gantt-idle, #475569)";
+  // Running and succeeded bars both use category colour
   return CATEGORY_COLORS[seg.category];
+}
+
+/** Status icon overlay text (R2). */
+function statusIcon(seg: GanttSegment, isLatestRunning: boolean): string | null {
+  if (seg.status === "running" && isLatestRunning) return "⏳";
+  if (seg.status === "running") return "⋯"; // orphaned/stale running
+  if (seg.status === "failed") return "✗";
+  if (seg.status === "succeeded" && seg.endTime !== null && seg.endTime !== seg.startTime) return "✓";
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -220,6 +233,9 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
 
+  // R3: Identify the single most-recent running segment for pulse animation
+  const latestRunningId = useMemo(() => findLatestRunningSegmentId(rows), [rows]);
+
   // Tick `now` forward while there are running segments, session is active, and not idle
   const hasRunning = !sessionCompleted && !isIdle && rows.some((r) =>
     r.segments.some((s) => s.endTime === null)
@@ -325,6 +341,19 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
               title={row.label}
             >
               {row.label}
+              {/* R5: Show collapsed group count badge */}
+              {row.collapsedGroups && row.collapsedGroups.length > 0 && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: "0.65rem",
+                    color: "#94a3b8",
+                    fontWeight: 400,
+                  }}
+                >
+                  ({row.collapsedGroups.reduce((s, g) => s + g.count, 0)} calls)
+                </span>
+              )}
             </div>
 
             {/* Bar area */}
@@ -343,8 +372,26 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                 const widthPct = ((end - seg.startTime) / range) * 100;
                 const isPoint = seg.endTime === seg.startTime;
                 const isRunning = seg.endTime === null;
-                const shouldAnimate = isRunning && !isIdle;
                 const isIdleGap = seg.status === "idle" && seg.eventType === "idle";
+                const isCollapsed = seg.eventType === "collapsed";
+
+                // R3: Only the latest running segment pulses
+                const isLatestRunning = seg.id === latestRunningId;
+                const shouldAnimate = isRunning && !isIdle && isLatestRunning;
+                // R3: Orphaned running bars (not latest) get a dashed right edge
+                const isOrphanedRunning = isRunning && !isLatestRunning && !isIdle;
+
+                // R1: Duration label
+                const durationMs = seg.endTime !== null && seg.endTime !== seg.startTime
+                  ? seg.endTime - seg.startTime
+                  : null;
+                const durationLabel = durationMs !== null ? formatDuration(durationMs) : null;
+                // Show duration label if bar is wide enough (>40px equivalent)
+                const barWidthPx = (widthPct / 100) * barAreaWidth;
+                const showDurationLabel = durationLabel && barWidthPx > 40 && !isPoint;
+
+                // R2: Status icon
+                const icon = statusIcon(seg, isLatestRunning);
 
                 return (
                   <div
@@ -362,20 +409,61 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                         ? IDLE_GAP_GRADIENT
                         : barColor(seg),
                       borderRadius: isPoint ? "50%" : 4,
-                      opacity: isIdleGap ? 0.35 : (isRunning && isIdle ? 0.5 : 0.9),
+                      opacity: isIdleGap ? 0.35 : (isOrphanedRunning ? 0.55 : (isRunning && isIdle ? 0.5 : 0.9)),
                       cursor: "pointer",
                       transition: isRunning ? "none" : "width 0.3s ease",
                       animation: shouldAnimate
                         ? "gantt-pulse 1.5s ease-in-out infinite"
                         : "none",
+                      // R3: Orphaned running bars get a dashed right border
+                      borderRight: isOrphanedRunning ? "2px dashed rgba(255,255,255,0.3)" : "none",
+                      // R5: Collapsed bars get a striped pattern overlay
+                      backgroundImage: isCollapsed
+                        ? `repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 6px)`
+                        : undefined,
+                      // R1/R2: Layout for text content
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 3,
+                      overflow: "hidden",
                     }}
                     role="img"
                     aria-label={`${seg.label}: ${seg.status}${
-                      seg.endTime !== null && seg.endTime !== seg.startTime
-                        ? ` (${formatDuration(seg.endTime - seg.startTime)})`
-                        : ""
+                      durationLabel ? ` (${durationLabel})` : ""
                     }`}
-                  />
+                  >
+                    {/* R2: Status icon */}
+                    {icon && barWidthPx > 20 && (
+                      <span
+                        style={{
+                          fontSize: "0.6rem",
+                          lineHeight: 1,
+                          flexShrink: 0,
+                          filter: seg.status === "failed" ? "none" : "drop-shadow(0 0 1px rgba(0,0,0,0.5))",
+                        }}
+                      >
+                        {icon}
+                      </span>
+                    )}
+                    {/* R1: Duration text label */}
+                    {showDurationLabel && (
+                      <span
+                        style={{
+                          fontSize: "0.6rem",
+                          fontWeight: 600,
+                          color: "#fff",
+                          textShadow: "0 1px 2px rgba(0,0,0,0.5)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {durationLabel}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -391,7 +479,7 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
       {/* Tooltip overlay */}
       {tooltip && <Tooltip data={tooltip} />}
 
-      {/* Legend */}
+      {/* Legend — updated to reflect R2 category-based colours */}
       <div
         style={{
           display: "flex",
@@ -404,24 +492,29 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
         aria-label="Gantt chart legend"
       >
         {([
-          ["Session", "var(--gantt-session, #3b82f6)"],
-          ["Tool ✓", "var(--gantt-tool-success, #22c55e)"],
-          ["Running", "var(--gantt-tool-running, #f59e0b)"],
-          ["Failed", "var(--gantt-tool-failed, #ef4444)"],
-          ["Agent", "var(--gantt-subagent, #a855f7)"],
-          ["Prompt", "var(--gantt-prompt, #06b6d4)"],
-          ["Idle", "var(--gantt-idle, #475569)"],
-        ] as const).map(([name, color]) => (
+          ["Session", "var(--gantt-session, #3b82f6)", undefined],
+          ["Tool", "var(--gantt-tool-success, #22c55e)", undefined],
+          ["Agent", "var(--gantt-subagent, #a855f7)", undefined],
+          ["Prompt", "var(--gantt-prompt, #06b6d4)", undefined],
+          ["Failed", "var(--gantt-tool-failed, #ef4444)", "✗"],
+          ["Active", "var(--gantt-tool-success, #22c55e)", "⏳"],
+          ["Idle", "var(--gantt-idle, #475569)", undefined],
+        ] as const).map(([name, color, icon]) => (
           <span key={name} style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <span
               style={{
-                display: "inline-block",
-                width: 10,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: icon ? 18 : 10,
                 height: 10,
                 borderRadius: 3,
                 background: color,
+                fontSize: "0.55rem",
               }}
-            />
+            >
+              {icon ?? ""}
+            </span>
             {name}
           </span>
         ))}

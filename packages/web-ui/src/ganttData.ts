@@ -21,12 +21,35 @@ export interface GanttSegment {
   status: "running" | "succeeded" | "failed" | "idle";
   eventType: string;
   details: Record<string, unknown>;
+  /**
+   * When true, the segment was auto-closed because a newer invocation of the
+   * same tool arrived before a postToolUse closed this one (R4 orphan fix).
+   */
+  autoClosed?: boolean;
+}
+
+/**
+ * A collapsed group represents multiple consecutive completed segments for the
+ * same tool that have been folded into a single summary bar (R5).
+ */
+export interface CollapsedGroup {
+  id: string;
+  label: string;
+  count: number;
+  totalDurationMs: number;
+  startTime: number;
+  endTime: number;
+  category: GanttSegment["category"];
+  /** The original segments hidden inside this group. */
+  children: GanttSegment[];
 }
 
 export interface GanttRow {
   rowId: string;
   label: string;
   segments: GanttSegment[];
+  /** Collapsed groups of repeated tool calls (R5). */
+  collapsedGroups?: CollapsedGroup[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -55,6 +78,92 @@ function agentNameFrom(payload: Record<string, unknown>): string {
   if (typeof payload.agentDisplayName === "string") return payload.agentDisplayName;
   if (typeof payload.agentName === "string") return payload.agentName;
   return "unknown";
+}
+
+/**
+ * R5: Collapse consecutive completed segments into summary groups when there
+ * are more than COLLAPSE_THRESHOLD in a row. The returned `visible` array
+ * contains only the segments that should render as individual bars; collapsed
+ * runs are replaced by a single summary segment and collected in `groups`.
+ */
+const COLLAPSE_THRESHOLD = 3;
+
+function collapseRepeatedSegments(segments: GanttSegment[]): {
+  visible: GanttSegment[];
+  groups: CollapsedGroup[];
+} {
+  if (segments.length <= COLLAPSE_THRESHOLD) {
+    return { visible: segments, groups: [] };
+  }
+
+  const visible: GanttSegment[] = [];
+  const groups: CollapsedGroup[] = [];
+  let runStart = 0;
+
+  while (runStart < segments.length) {
+    // Find the end of a consecutive run of completed (non-running) segments
+    let runEnd = runStart;
+    while (
+      runEnd < segments.length &&
+      segments[runEnd].endTime !== null &&
+      segments[runEnd].status !== "running"
+    ) {
+      runEnd++;
+    }
+
+    const runLength = runEnd - runStart;
+    if (runLength > COLLAPSE_THRESHOLD) {
+      // Collapse this run into a summary
+      const children = segments.slice(runStart, runEnd);
+      const totalMs = children.reduce((sum, s) => {
+        const dur = (s.endTime ?? s.startTime) - s.startTime;
+        return sum + dur;
+      }, 0);
+      const group: CollapsedGroup = {
+        id: `collapsed-${children[0].id}`,
+        label: `${runLength}× ${children[0].label} (${formatDurationShort(totalMs)})`,
+        count: runLength,
+        totalDurationMs: totalMs,
+        startTime: children[0].startTime,
+        endTime: children[children.length - 1].endTime ?? children[children.length - 1].startTime,
+        category: children[0].category,
+        children,
+      };
+      groups.push(group);
+      // Add a single summary segment to visible
+      visible.push({
+        id: group.id,
+        label: group.label,
+        category: group.category,
+        startTime: group.startTime,
+        endTime: group.endTime,
+        status: "succeeded",
+        eventType: "collapsed",
+        details: { count: runLength, totalDurationMs: totalMs },
+      });
+    } else {
+      // Not enough to collapse — keep individual segments
+      for (let i = runStart; i < runEnd; i++) {
+        visible.push(segments[i]);
+      }
+    }
+
+    // Push any running/non-completed segments that broke the run
+    if (runEnd < segments.length && (segments[runEnd].endTime === null || segments[runEnd].status === "running")) {
+      visible.push(segments[runEnd]);
+      runEnd++;
+    }
+    runStart = runEnd;
+  }
+
+  return { visible, groups };
+}
+
+/** Compact duration format for collapse labels. */
+function formatDurationShort(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 60_000).toFixed(1)}m`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -153,6 +262,16 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
         closeIdleGap(t);
         const name = toolNameFrom(payload);
         const rowKey = `tool:${name}`;
+
+        // R4: Auto-close any still-open segment for the same tool name.
+        // This prevents orphaned bars when a postToolUse never arrives.
+        const prevOpen = openTools.get(rowKey);
+        if (prevOpen && prevOpen.endTime === null) {
+          prevOpen.endTime = t;
+          prevOpen.status = "succeeded";
+          prevOpen.autoClosed = true;
+        }
+
         const seg: GanttSegment = {
           id: ev.eventId,
           label: `Tool: ${name}`,
@@ -324,10 +443,12 @@ export function buildGanttData(events: EventEnvelope[]): GanttRow[] {
   );
   for (const [rowKey, segments] of toolEntries) {
     const name = rowKey.replace(/^tool:/, "");
+    const { visible, groups } = collapseRepeatedSegments(segments);
     rows.push({
       rowId: rowKey,
       label: `Tool: ${name}`,
-      segments,
+      segments: visible,
+      collapsedGroups: groups.length > 0 ? groups : undefined,
     });
   }
 
@@ -369,4 +490,25 @@ export function computeTimeRange(rows: GanttRow[]): [number, number] {
   }
 
   return [min, max];
+}
+
+/**
+ * R3: Find the ID of the most recently started running segment across all rows.
+ * Only this segment should receive the pulse animation — all other open segments
+ * are considered orphaned and rendered with a static dashed-edge style.
+ */
+export function findLatestRunningSegmentId(rows: GanttRow[]): string | null {
+  let latestId: string | null = null;
+  let latestStart = -Infinity;
+
+  for (const row of rows) {
+    for (const seg of row.segments) {
+      if (seg.endTime === null && seg.status === "running" && seg.startTime > latestStart) {
+        latestStart = seg.startTime;
+        latestId = seg.id;
+      }
+    }
+  }
+
+  return latestId;
 }
