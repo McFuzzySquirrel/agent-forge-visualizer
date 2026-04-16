@@ -19,6 +19,7 @@ import { GanttChart } from "./components/GanttChart.js";
 import { EventInspector } from "./components/EventInspector.js";
 import { FilterControls } from "./components/FilterControls.js";
 import { ReplayControls } from "./components/ReplayControls.js";
+import { PairingDiagnosticsPanel } from "./components/PairingDiagnosticsPanel.js";
 import type { FilterConfig, InspectorEntry, ReplaySpeed } from "./types.js";
 
 /** Pixel threshold below which the event list is considered "scrolled to bottom". */
@@ -261,6 +262,9 @@ export function App() {
       </header>
 
       {/* Gantt Chart - visual centerpiece */}
+      <div style={{ marginBottom: "1rem" }}>
+        <PairingDiagnosticsPanel ingestBase={INGEST_BASE} />
+      </div>
       <div style={{ marginBottom: "1.5rem" }}>
         <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#94a3b8", fontWeight: 500 }}>
           Timeline
