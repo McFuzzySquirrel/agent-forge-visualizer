@@ -235,9 +235,15 @@ interface Props {
   isIdle?: boolean;
   /** Optional callback when a segment bar is selected. */
   onSegmentSelect?: (segment: GanttSegment, row: GanttRow) => void;
+  /** Currently selected time window, used to highlight the active segment. */
+  selectedPeriod?: {
+    startTime: number;
+    endTime: number;
+    label: string;
+  } | null;
 }
 
-export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect }: Props) {
+export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect, selectedPeriod }: Props) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [now, setNow] = useState(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -389,6 +395,11 @@ export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect }: 
                 const isRunning = seg.endTime === null;
                 const isIdleGap = seg.status === "idle" && seg.eventType === "idle";
                 const isCollapsed = seg.eventType === "collapsed";
+                const isSelected =
+                  !!selectedPeriod &&
+                  selectedPeriod.startTime === seg.startTime &&
+                  selectedPeriod.endTime === (seg.endTime ?? now) &&
+                  selectedPeriod.label === seg.label;
 
                 // R3: Only the latest running segment pulses
                 const isLatestRunning = seg.id === latestRunningId;
@@ -440,6 +451,13 @@ export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect }: 
                         : "none",
                       // R3: Orphaned running bars get a dashed right border
                       borderRight: isOrphanedRunning ? "2px dashed rgba(255,255,255,0.3)" : "none",
+                      outline: isSelected ? "2px solid #f8fafc" : "none",
+                      outlineOffset: isSelected ? 1 : 0,
+                      boxShadow: isSelected
+                        ? "0 0 0 2px rgba(59, 130, 246, 0.5), 0 0 18px rgba(59, 130, 246, 0.35)"
+                        : isRunning
+                          ? undefined
+                          : "none",
                       // R5: Collapsed bars get a striped pattern overlay
                       backgroundImage: isCollapsed
                         ? `repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 6px)`
@@ -451,7 +469,8 @@ export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect }: 
                       gap: 3,
                       overflow: "hidden",
                     }}
-                    role="img"
+                    role="button"
+                    aria-pressed={isSelected}
                     aria-label={`${seg.label}: ${seg.status}${
                       durationLabel ? ` (${durationLabel})` : ""
                     }`}

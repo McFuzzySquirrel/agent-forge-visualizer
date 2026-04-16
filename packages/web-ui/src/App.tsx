@@ -317,6 +317,7 @@ export function App() {
           sessionCompleted={sessionCompleted}
           isIdle={isIdle}
           onSegmentSelect={handleSelectGanttSegment}
+          selectedPeriod={selectedPeriod}
         />
       </div>
 
