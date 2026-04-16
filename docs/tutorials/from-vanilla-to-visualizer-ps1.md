@@ -1,4 +1,4 @@
-# From Vanilla to Visualizer
+# From Vanilla to Visualizer (PowerShell)
 
 > **Split tutorial format:** this page is now the landing page for the step-by-step parts.
 
@@ -19,13 +19,13 @@ Think of this as a hands-on visual learning journey: start with raw hook
 payloads, then incrementally shape them into a complete observability
 experience.
 
-**Prerequisites:** Familiarity with shell scripting and basic understanding
+**Prerequisites:** Familiarity with PowerShell scripting and basic understanding
 of how Copilot CLI hooks work. If you're new to hooks, start with the
 [vanilla hook examples](../examples/vanilla-hooks/README.md) and the
 [official hooks documentation](https://docs.github.com/en/copilot/reference/hooks-configuration).
 
-Using PowerShell instead of bash? See the companion guide:
-[From Vanilla to Visualizer (PowerShell)](./from-vanilla-to-visualizer-ps1.md).
+Prefer bash/Linux examples? See the companion guide:
+[From Vanilla to Visualizer](./from-vanilla-to-visualizer.md).
 
 Browse all tutorial tracks and parts:
 [Tutorial Index](./README.md).
@@ -34,17 +34,17 @@ Browse all tutorial tracks and parts:
 
 ## Parts
 
-- [Part 1: Starting from Vanilla](./from-vanilla-to-visualizer/part-1.md)
-- [Part 2: Adding Schema & Validation](./from-vanilla-to-visualizer/part-2.md)
-- [Part 3: Enriching Payloads](./from-vanilla-to-visualizer/part-3.md)
-- [Part 4: Synthesizing Events](./from-vanilla-to-visualizer/part-4.md)
-- [Part 5: The Emit Pattern](./from-vanilla-to-visualizer/part-5.md)
-- [Part 6: Putting It Together](./from-vanilla-to-visualizer/part-6.md)
+- [Part 1: Starting from Vanilla](./from-vanilla-to-visualizer-ps1/part-1.md)
+- [Part 2: Adding Schema & Validation](./from-vanilla-to-visualizer-ps1/part-2.md)
+- [Part 3: Enriching Payloads](./from-vanilla-to-visualizer-ps1/part-3.md)
+- [Part 4: Synthesizing Events](./from-vanilla-to-visualizer-ps1/part-4.md)
+- [Part 5: The Emit Pattern](./from-vanilla-to-visualizer-ps1/part-5.md)
+- [Part 6: Putting It Together](./from-vanilla-to-visualizer-ps1/part-6.md)
 
 ## Navigation
 
-- Start here: [Part 1](./from-vanilla-to-visualizer/part-1.md)
-- Jump to finale: [Part 6](./from-vanilla-to-visualizer/part-6.md)
+- Start here: [Part 1](./from-vanilla-to-visualizer-ps1/part-1.md)
+- Jump to finale: [Part 6](./from-vanilla-to-visualizer-ps1/part-6.md)
 
 ## Next Steps
 

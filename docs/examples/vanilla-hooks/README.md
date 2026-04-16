@@ -8,7 +8,7 @@ Use these examples to understand exactly what data Copilot CLI provides out of
 the box, before layering on any customization.
 
 For a guided walkthrough of how we transformed these vanilla hooks into the
-full-featured visualizer, see the
+full-featured visualiser, see the
 [From Vanilla to Visualizer tutorial](../../tutorials/from-vanilla-to-visualizer.md).
 
 ---
@@ -199,7 +199,7 @@ Fires after a tool completes — whether it succeeded or failed.
 
 > **Key insight:** Copilot CLI fires a single `postToolUse` hook for both
 > success and failure. Use `toolResult.resultType` to distinguish. The
-> visualizer splits this into separate `postToolUse` and `postToolUseFailure`
+> visualiser splits this into separate `postToolUse` and `postToolUseFailure`
 > events — see the
 > [tutorial](../../tutorials/from-vanilla-to-visualizer.md#part-4-synthesizing-events)
 > for how and why.
@@ -301,9 +301,9 @@ automatically.
 
 ## What's NOT Here
 
-These vanilla scripts intentionally omit everything the visualizer adds on top:
+These vanilla scripts intentionally omit everything the visualiser adds on top:
 
-| Feature | Vanilla | Visualizer |
+| Feature | Vanilla | Visualiser |
 |---------|---------|------------|
 | Raw payload logging | ✅ | ✅ |
 | Event schema envelope | ❌ | ✅ — wraps every event in `{ schemaVersion, eventId, eventType, timestamp, sessionId, source, repoPath, payload }` |

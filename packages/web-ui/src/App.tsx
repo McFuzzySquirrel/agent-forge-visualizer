@@ -210,7 +210,7 @@ export function App() {
         }}
       >
         <h1 style={{ fontSize: "1.4rem", margin: 0, letterSpacing: "-0.01em" }}>
-          Copilot Agent Activity Visualizer
+          Copilot Activity Visualiser
         </h1>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           {replayMode && (
