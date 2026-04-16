@@ -21,6 +21,7 @@
     "bootstrap:repo": "tsx scripts/bootstrap-existing-repo.ts",
     "unbootstrap:repo": "tsx scripts/unbootstrap-existing-repo.ts",
     "replay:jsonl": "tsx scripts/replay-jsonl.ts",
+    "tutorial:screenshots": "tsx scripts/capture-tutorial-screenshots.ts",
     "lint": "echo 'Lint config baseline in place'",
     "clean": "rm -rf coverage dist .tmp"
   },
