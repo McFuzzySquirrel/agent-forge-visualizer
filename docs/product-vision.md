@@ -3,9 +3,9 @@
 ## 1. Overview
 
 **Product Name:** Copilot Activity Visualiser  
-**Summary:** A standalone, local-first visualization product that captures Copilot CLI activity and renders live execution state, timeline replay, and failure context so developers can understand agent workflows without manually parsing transcripts.  
+**Summary:** A standalone, local-first visualization product that captures Copilot CLI activity and renders live execution state, timeline replay, pairing confidence, and failure context so developers can understand agent workflows without manually parsing transcripts. The product also serves as a practical learning surface through guided tutorials, vanilla hook examples, and screenshot-backed operator documentation.  
 **Target Platform:** Linux, macOS, and Windows developer laptops (MVP), local browser UI plus Copilot CLI hook integration.  
-**Key Constraints:** Local-first operation, offline compatibility, strict redaction before persist/transmit, optional integration with Agent Forge and EJS metadata, event-to-render latency under 1 second, and separate project packaging from Agent Forge core.  
+**Key Constraints:** Local-first operation, offline compatibility, strict redaction before persist/transmit, optional integration with Agent Forge and EJS metadata, event-to-render latency under 1 second, deterministic replay compatibility for historical logs, additive tracing rollout with backward compatibility, and separate project packaging from Agent Forge core.  
 **Original PRD:** [docs/prd.md](prd.md)
 
 ---
@@ -16,6 +16,7 @@
 |---------|------|--------|---------|
 | 1.0 | 2026-04-12 | GitHub Copilot | Initial product vision decomposed from [docs/prd.md](prd.md) |
 | 1.1 | 2026-04-14 | GitHub Copilot | Post-MVP alignment: updated TypeScript version to match installed 5.x, all five MVP features marked complete |
+| 1.2 | 2026-04-17 | GitHub Copilot | Post-MVP direction update: tracing v2, pairing diagnostics, integration tooling, and quickstart/deep-doc split |
 
 ---
 
@@ -24,9 +25,11 @@
 ### 3.1 Goals
 - Deliver live execution state transitions for Copilot CLI sessions with minimal setup.
 - Provide deterministic replay of completed sessions with scrubbing and failure jump.
+- Improve debugging confidence with exact-vs-heuristic tool pairing visibility.
 - Keep sensitive data local and redacted by default.
 - Preserve optional integration posture: useful standalone, with optional Agent Forge and EJS overlays.
 - Maintain schema-driven extensibility for future integrations and UI growth.
+- Provide a fast path from clone to first visible signal through quickstart docs, demo commands, and guided tutorials.
 
 ### 3.2 Non-Goals
 - Full parity with every Copilot interaction surface outside CLI for MVP.
@@ -61,6 +64,9 @@
 - Event schema-first approach selected to reduce payload drift risk and support controlled evolution.
 - Privacy design established early: redact-before-persist and export disabled by default.
 - Packaging decision (ADR-001): keep visualizer as separate project to avoid Agent Forge core coupling.
+- Tracing v2 direction selected as an additive event-stream correlation model: optional IDs (`turnId`, `traceId`, `spanId`, `parentSpanId`, `toolCallId`) improve fidelity without breaking replay of older logs.
+- Operator-facing diagnostics are product features, not just internal tools: pairing confidence and inspector metadata are part of the intended debugging workflow.
+- Documentation is intentionally split by depth: README as operator runbook, tutorials/showcase/specs as deep references (see ADR-007 and ADR-008).
 
 ---
 
@@ -111,6 +117,7 @@ agent-forge-visualizer/
 | Emitter -> JSONL Log | Output | Persist canonical event records |
 | Emitter -> Localhost HTTP (optional) | Output | Stream events to ingest service in real-time |
 | Ingest Service -> State Engine | Internal | Derive deterministic session and lane states |
+| Ingest Service -> Pairing Diagnostics | Internal / HTTP | Report exact-id vs span vs heuristic tool pairing confidence |
 | State Engine -> Web UI | Internal | Push normalized updates for rendering |
 | Replay Engine -> Timeline UI | Internal | Drive playback, scrubbing, and event inspection |
 
@@ -125,7 +132,8 @@ agent-forge-visualizer/
 | NF-03 | UI must remain responsive during replay of 10k+ event sessions. | Must |
 | NF-04 | System must operate offline after installation. | Must |
 | NF-05 | Components must expose structured logs suitable for local debugging. | Should |
-| NF-06 | Architecture must allow extension to optional IDE bridge and OpenTelemetry exporter post-MVP. | Could |
+| NF-06 | Historical logs without tracing fields must continue to replay without behavior regressions. | Must |
+| NF-07 | Architecture must allow extension to optional IDE bridge and OpenTelemetry exporter post-MVP. | Could |
 
 ---
 
@@ -176,6 +184,11 @@ agent-forge-visualizer/
 - `subagentStart` maps to `subagent_running`.
 - `subagentStop` or `agentStop` resolves to `idle`.
 
+### 10.4 Correlation and Diagnostic Rules
+- Tool lifecycle pairing prefers exact `toolCallId`, then exact `spanId`, then FIFO fallback.
+- Correlation metadata is optional and additive; absence must not block render or replay.
+- Pairing confidence must be inspectable so operators can distinguish exact correlation from heuristic fallback.
+
 ---
 
 ## 11. Analytics / Success Metrics
@@ -183,6 +196,7 @@ agent-forge-visualizer/
 | Metric | Target | Measurement Method |
 |--------|--------|--------------------|
 | Time to first live visualization | < 10 minutes | Scripted clean-clone setup trials |
+| Time to first signal from quick demo flow | < 2 minutes after services start | Local demo command verification |
 | Event-to-render latency | < 1 second | Timestamp delta from ingest to UI render event |
 | Event capture reliability | >= 95% | Expected-vs-captured event ratio in controlled runs |
 | Redaction effectiveness | 100% in policy test suite | Automated compliance tests for sensitive patterns |
@@ -211,6 +225,7 @@ agent-forge-visualizer/
 | Event loss on abrupt process termination | Medium | Medium | Append-only log writes with flush strategy and recovery replay |
 | UI slowdown on large replay files | Medium | Medium | Virtualized timeline rendering and chunked parsing |
 | Overcoupling to Agent Forge expectations | Low | Medium | Enforce standalone contract and optional integration boundaries |
+| Correlation field sparsity in real integrations | Medium | Medium | Exact-id -> span -> FIFO fallback plus visible diagnostics |
 
 ---
 
@@ -219,6 +234,7 @@ agent-forge-visualizer/
 | Item | Description | Potential Version |
 |------|-------------|-------------------|
 | EJS enrichment overlay | Attach persistent journey metadata to timelines | v1.1+ |
+| Optional local correlation cache | Non-authoritative accelerator for correlation lookups only | v1.1+ |
 | IDE bridge | Integrate live board in editor surfaces | v2 |
 | OpenTelemetry exporter | Optional standardized telemetry export | v2 |
 | Desktop packaging | Unified distribution with embedded runtime | v3 |
@@ -235,6 +251,15 @@ agent-forge-visualizer/
 | 3 | Live Visualization Board | [docs/features/live-visualization-board.md](features/live-visualization-board.md) | Foundation Event Capture, Deterministic State Engine | Must |
 | 4 | Replay and Session Review | [docs/features/replay-and-session-review.md](features/replay-and-session-review.md) | Foundation Event Capture, Deterministic State Engine, Live Visualization Board | Must |
 | 5 | Privacy Retention and Export Controls | [docs/features/privacy-retention-and-export-controls.md](features/privacy-retention-and-export-controls.md) | Foundation Event Capture | Must |
+
+### Post-MVP Capability Themes
+
+| Theme | Current Status | Primary References |
+|-------|----------------|--------------------|
+| Tracing v2 / event-stream correlation | Implemented | [docs/roadmap/tracing-plan.md](roadmap/tracing-plan.md), [docs/adr/008-tracing-ux-and-doc-consolidation.md](adr/008-tracing-ux-and-doc-consolidation.md) |
+| Subagent synthesis refinement | Implemented | [docs/adr/006-task-posttooluse-subagent-synthesis.md](adr/006-task-posttooluse-subagent-synthesis.md) |
+| UI diagnostics and idle-aware polish | Implemented | [docs/adr/005-idle-aware-gantt-and-ui-polish.md](adr/005-idle-aware-gantt-and-ui-polish.md) |
+| Quickstart and documentation depth split | Implemented | [docs/adr/007-readme-quickstart-and-doc-depth-split.md](adr/007-readme-quickstart-and-doc-depth-split.md) |
 
 ### Feature Dependency Graph
 
