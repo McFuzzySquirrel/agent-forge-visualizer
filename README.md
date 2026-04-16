@@ -1,10 +1,29 @@
-# Copilot Agent Activity Visualizer
+# Copilot Activity Visualiser
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/McFuzzySquirrel/agent-forge-visualizer/ci.yml?style=flat-square)](https://github.com/McFuzzySquirrel/agent-forge-visualizer/actions)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24-3c873a?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 Visualize Copilot agent runtime activity in real time and replay sessions from persisted JSONL logs.
+
+> **🎓 This project is also an interactive, hands-on learning experience.**
+> Beyond the visualiser itself, the repo includes guided tutorials and vanilla hook examples that walk you through Copilot CLI hooks from the ground up — starting with raw payloads and progressively adding schema validation, payload enrichment, event synthesis, and the emit pipeline.
+
+![UI overview of the live board, replay controls, filters, and inspector](docs/tutorials/assets/tutorial-screenshots/ui-features/ui-overview.png)
+
+See the [UI Feature Showcase](docs/tutorials/ui-feature-showcase.md) for a
+panel-by-panel walkthrough of the visualizer interface.
+
+## 🎓 Learning & Tutorials
+
+Start here if you want the practical, step-by-step learning path:
+
+- **[Tutorial Index](docs/tutorials/README.md)** — choose your track (Bash/Linux or PowerShell) and jump to any tutorial part.
+- **[From Vanilla to Visualizer (Bash/Linux)](docs/tutorials/from-vanilla-to-visualizer.md)** — six-part walkthrough from raw hooks to full pipeline.
+- **[From Vanilla to Visualizer (PowerShell)](docs/tutorials/from-vanilla-to-visualizer-ps1.md)** — PowerShell-focused version of the same journey.
+- **[UI Feature Showcase](docs/tutorials/ui-feature-showcase.md)** — screenshot tour of the live board, replay controls, filters, pairing diagnostics, and inspector.
+- **[Vanilla Hook Examples](docs/examples/vanilla-hooks/)** — minimal `.sh` + `.ps1` scripts for all 8 hook types.
+- **[Hooked on Hooks](docs/hooked-on-hooks.md)** — practical patterns and lessons learned building this visualiser.
 
 The project is complete for the planned MVP scope:
 - Foundation Event Capture
@@ -43,7 +62,7 @@ npm run typecheck
 npm run test
 ```
 
-### Run the Visualizer
+### Run the Visualiser
 
 ```bash
 # terminal 1 (from this repo)
@@ -57,6 +76,26 @@ Open `http://127.0.0.1:5173`.
 
 > [!TIP]
 > Use `npm run smoke:e2e` to run a full emitter -> ingest -> state-stream runtime verification.
+
+### 2-Minute Local Demo
+
+With ingest and web UI running, emit two events into a throwaway session:
+
+```bash
+SESSION_ID="demo-$(date +%s)"
+npm run emit:event -- --eventType sessionStart --payload '{}' --sessionId "$SESSION_ID" --repoPath "$PWD" --jsonlPath "$PWD/.tmp/demo-session.jsonl" --httpEndpoint "http://127.0.0.1:7070/events"
+npm run emit:event -- --eventType userPromptSubmitted --payload '{"prompt":"Run a quick visualizer demo"}' --sessionId "$SESSION_ID" --repoPath "$PWD" --jsonlPath "$PWD/.tmp/demo-session.jsonl" --httpEndpoint "http://127.0.0.1:7070/events"
+```
+
+You should immediately see the new session and prompt event appear in the live UI.
+
+> [!NOTE]
+> If you only want offline capture, keep the same commands but omit `--httpEndpoint`. Events will still be persisted to JSONL.
+
+### Troubleshooting Local Startup
+
+- If `npm run serve:ingest` exits immediately, ensure Node.js `>=24` (`node -v`) and confirm port `7070` is free (`lsof -i :7070`).
+- If the web UI starts but no events appear, check ingest is listening on `http://127.0.0.1:7070`, verify emit commands include the same `--httpEndpoint`, and inspect JSONL output under `.tmp/` or `.visualizer/logs/`.
 
 ## Integrate an Existing Repo
 
@@ -83,7 +122,7 @@ Use `--create-hooks` to generate stub hook scripts automatically:
 npm run bootstrap:repo -- /path/to/target-repo --create-hooks
 ```
 
-This creates `.github/hooks/visualizer/` with scripts for every Copilot CLI hook (session start/end, tool use, subagent stop, agent stop, error, etc.), each pre-wired to emit visualizer events. A `visualizer-hooks.json` manifest is also created inside the same subdirectory as the canonical registry of all captured event types.
+This creates `.github/hooks/visualizer/` with scripts for every Copilot CLI hook (session start/end, tool use, subagent stop, agent stop, error, etc.), each pre-wired to emit visualiser events. A `visualizer-hooks.json` manifest is also created inside the same subdirectory as the canonical registry of all captured event types.
 
 Generated subagent hooks now capture richer start metadata when the host integration provides it, including display name, description, task text, and summary/message fields. The generated stubs prefer `AGENT_NAME` and `SUBAGENT_NAME`, then fall back through display-name and task-description style variables before using `unknown`.
 
@@ -96,6 +135,16 @@ npm run bootstrap:repo -- /path/to/target-repo --create-hooks --prefix viz
 ```
 
 This generates `viz-session-start.sh`, `viz-pre-tool-use.sh`, etc. instead of bare names. When wiring existing hooks, prefixed filenames like `viz-session-start.sh` are matched automatically.
+
+### Vanilla Mode
+
+Use `--vanilla` to generate minimal hooks that log raw Copilot CLI payloads with no transformations:
+
+```bash
+npm run bootstrap:repo -- /path/to/target-repo --create-hooks --vanilla
+```
+
+This creates simple scripts that read stdin and append the raw JSON to `.github/hooks/logs/events.jsonl` — no enrichment, no emit-event dependency, no fallback cascades. Use this to understand the default payloads before layering on customizations. See the [vanilla examples](docs/examples/vanilla-hooks/README.md) and [tutorial](docs/tutorials/from-vanilla-to-visualizer.md) for details.
 
 When bootstrapping, the tool also scans `.github/hooks/` for JSON hook manifests and updates any compatible manifest that contains a `hooks` object (for example `ejs-hooks.json` or other manifest names). Missing mapped lifecycle entries are added automatically based on discovered/generated hook scripts.
 
@@ -114,7 +163,7 @@ If you use prefixed hook names, include the same prefix in both commands.
 
 ## Unbootstrap Target Repo
 
-To remove visualizer integration from a target repo, use the unbootstrap command.
+To remove visualiser integration from a target repo, use the unbootstrap command.
 
 Dry-run (default, no file changes):
 
@@ -135,7 +184,7 @@ npm run unbootstrap:repo -- /absolute/path/to/target-repo --prefix viz --apply
 ```
 
 Unbootstrap behavior:
-- Removes auto-wired visualizer emit blocks from hook scripts.
+- Removes auto-wired visualiser emit blocks from hook scripts.
 - Deletes the dedicated `visualizer-hooks.json` manifest and the `visualizer/` subdirectory.
 - Updates compatible JSON hook manifests under `.github/hooks/` recursively by removing bootstrap-managed entries.
 - Deletes safe auto-generated stub hooks (boilerplate-only).
@@ -168,7 +217,7 @@ Print the supported hook event types from this repo:
 npx tsx scripts/configure-hooks.ts
 ```
 
-The `visualizer-hooks.json` manifest created during bootstrap is the canonical source of truth for which events the visualizer captures. It covers all 8 Copilot CLI hook types (3 additional event types — `subagentStart`, `postToolUseFailure`, and `notification` — are synthesized internally and do not have corresponding hooks).
+The `visualizer-hooks.json` manifest created during bootstrap is the canonical source of truth for which events the visualiser captures. It covers all 8 Copilot CLI hook types (3 additional event types — `subagentStart`, `postToolUseFailure`, and `notification` — are synthesized internally and do not have corresponding hooks).
 
 ## Package Layout
 
@@ -194,6 +243,6 @@ npm run replay:jsonl -- /path/to/events.jsonl
 
 - Product vision: `docs/product-vision.md`
 - Progress tracker: `docs/PROGRESS.md`
+- UI showcase: `docs/tutorials/ui-feature-showcase.md`
 - Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
-- Learning guide: `docs/hooked-on-hooks.md` — a practical guide to Copilot CLI hooks, patterns, and best practices
 - Architecture decisions: `docs/adr/` — ADRs covering packaging, metadata, manifests, hook isolation, and UI polish

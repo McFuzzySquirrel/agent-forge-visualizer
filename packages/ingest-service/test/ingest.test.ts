@@ -305,6 +305,60 @@ describe("rebuildStateFromFile (STAT-FR-03)", () => {
   });
 });
 
+describe("pairing diagnostics", () => {
+  it("reports pairing mode counts and unmatched totals", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "ingest-pairing-diag-"));
+    const jsonlPath = join(dir, "events.jsonl");
+
+    const server = await createIngestServer();
+    await server.listen({ host: "127.0.0.1", port: 0 });
+    const addr = server.server.address();
+    const port = typeof addr === "object" && addr ? addr.port : 0;
+
+    const options = {
+      jsonlPath,
+      repoPath: "/tmp/repo",
+      sessionId: "diag-sess",
+      httpEndpoint: `http://127.0.0.1:${port}/events`
+    };
+
+    // Exact toolCallId pair
+    await emitEvent("preToolUse", { toolName: "bash", toolCallId: "call-1" }, {
+      ...options,
+      spanId: "span-1",
+      traceId: "trace-1"
+    });
+    await emitEvent("postToolUse", { toolName: "bash", status: "success", toolCallId: "call-1" }, {
+      ...options,
+      spanId: "span-1",
+      traceId: "trace-1"
+    });
+
+    // Heuristic pair (no ids)
+    await emitEvent("preToolUse", { toolName: "view" }, options);
+    await emitEvent("postToolUse", { toolName: "view", status: "success" }, options);
+
+    // Unmatched pre
+    await emitEvent("preToolUse", { toolName: "task" }, options);
+
+    const response = await fetch(`http://127.0.0.1:${port}/diagnostics/pairing`);
+    const body = (await response.json()) as {
+      totalPairs: number;
+      byMode: { toolCallId: number; spanId: number; heuristic: number };
+      unmatched: { preToolUse: number; postToolUse: number };
+    };
+
+    expect(body.totalPairs).toBe(2);
+    expect(body.byMode.toolCallId).toBe(1);
+    expect(body.byMode.heuristic).toBe(1);
+    expect(body.unmatched.preToolUse).toBe(1);
+    expect(body.unmatched.postToolUse).toBe(0);
+
+    await server.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
 describe("SSE state stream (LIVE-FR-01 / LIVE-FR-03)", () => {
   it("emits initial state and then pushes updated state after event ingestion", async () => {
     const server = await createIngestServer();

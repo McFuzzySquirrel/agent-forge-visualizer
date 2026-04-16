@@ -66,6 +66,15 @@ timeline ordering remains explicit.
 3. Historical logs created with prior synthesis timing will replay according to
    their existing event records.
 
+### Cross-links
+
+- **Tracing v2 (Phase A/B):** The optional `toolCallId` on `preToolUse` /
+  `postToolUse` provides an exact pairing key that supersedes the FIFO heuristic
+  when present. See [Tracing Plan v2](../roadmap/tracing-plan.md) and
+  `shared/state-machine/src/queries.ts` (`pairToolEvents`).
+- The `task` tool's `postToolUse` payload may carry `toolCallId` when emitted
+  by the enhanced hook emitter, improving synthesis attribution further.
+
 ## Alternatives Considered
 
 ### A) Keep start-on-pre and stop-on-post

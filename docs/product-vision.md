@@ -1,8 +1,8 @@
-# Product Vision: Copilot Agent Activity Visualizer
+# Product Vision: Copilot Activity Visualiser
 
 ## 1. Overview
 
-**Product Name:** Copilot Agent Activity Visualizer  
+**Product Name:** Copilot Activity Visualiser  
 **Summary:** A standalone, local-first visualization product that captures Copilot CLI activity and renders live execution state, timeline replay, and failure context so developers can understand agent workflows without manually parsing transcripts.  
 **Target Platform:** Linux, macOS, and Windows developer laptops (MVP), local browser UI plus Copilot CLI hook integration.  
 **Key Constraints:** Local-first operation, offline compatibility, strict redaction before persist/transmit, optional integration with Agent Forge and EJS metadata, event-to-render latency under 1 second, and separate project packaging from Agent Forge core.  

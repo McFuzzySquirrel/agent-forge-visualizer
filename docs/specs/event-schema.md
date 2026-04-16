@@ -17,6 +17,10 @@ Each event record is a single JSON object.
   "sessionId": "string",
   "source": "copilot-cli",
   "repoPath": "/abs/path/to/repo",
+  "turnId": "turn-optional",
+  "traceId": "trace-optional",
+  "spanId": "span-optional",
+  "parentSpanId": "span-parent-optional",
   "payload": {}
 }
 ```
@@ -31,6 +35,20 @@ Each event record is a single JSON object.
 - `source`
 - `repoPath`
 - `payload`
+
+## Optional Correlation Fields (Tracing v2 Phase A)
+
+The following envelope fields are optional and additive:
+
+- `turnId`: stable identifier for one prompt/response turn
+- `traceId`: stable identifier for one top-level workflow within a session
+- `spanId`: optional span identifier for the current event
+- `parentSpanId`: optional parent span for nested execution
+
+Backward compatibility rule:
+
+1. Events without these fields remain valid.
+2. Replay/rendering must behave identically for logs that do not include them.
 
 ## Event Types (MVP)
 
@@ -68,9 +86,12 @@ See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
 ```json
 {
   "toolName": "bash",
-  "toolArgs": {"command": "npm test"}
+  "toolArgs": {"command": "npm test"},
+  "toolCallId": "call-optional"
 }
 ```
+
+`toolCallId` is optional and used for stronger pre/post correlation when available.
 
 ### `postToolUse`
 
@@ -78,7 +99,8 @@ See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
 {
   "toolName": "bash",
   "status": "success",
-  "durationMs": 742
+  "durationMs": 742,
+  "toolCallId": "call-optional"
 }
 ```
 
@@ -89,7 +111,8 @@ See: https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-hooks
   "toolName": "bash",
   "status": "failure",
   "durationMs": 310,
-  "errorSummary": "exit code 1"
+  "errorSummary": "exit code 1",
+  "toolCallId": "call-optional"
 }
 ```
 

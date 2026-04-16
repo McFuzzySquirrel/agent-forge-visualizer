@@ -41,6 +41,30 @@ export function EventInspector({ entry }: Props) {
         <dd>{entry.timestamp}</dd>
         <dt>Session ID</dt>
         <dd>{entry.sessionId}</dd>
+        {entry.turnId && (
+          <>
+            <dt>Turn ID</dt>
+            <dd><code>{entry.turnId}</code></dd>
+          </>
+        )}
+        {entry.traceId && (
+          <>
+            <dt>Trace ID</dt>
+            <dd><code>{entry.traceId}</code></dd>
+          </>
+        )}
+        {entry.spanId && (
+          <>
+            <dt>Span ID</dt>
+            <dd><code>{entry.spanId}</code></dd>
+          </>
+        )}
+        {entry.parentSpanId && (
+          <>
+            <dt>Parent Span ID</dt>
+            <dd><code>{entry.parentSpanId}</code></dd>
+          </>
+        )}
       </dl>
       <pre
         aria-label="Event payload"

@@ -5,9 +5,55 @@
 **Mode**: Feature-Based Build  
 **Product Vision**: docs/product-vision.md  
 **Status**: Complete  
-**Last Updated**: 2026-04-14
+**Last Updated**: 2026-04-17
 
-All five planned features are complete and validated locally. Integration tooling (bootstrap/unbootstrap) has been added post-MVP. Live board UI polish has been applied.
+All five planned features are complete and validated locally. Integration tooling (bootstrap/unbootstrap) has been added post-MVP. Live board UI polish has been applied. Tracing v2 (event-stream correlation) is complete across schema, emitter, ingest, UI, and documentation.
+
+## Tracing v2: Event-Stream Correlation (Post-MVP)
+
+### Implemented Deliverables
+
+- Added optional `turnId`, `traceId`, `spanId`, `parentSpanId` to `BaseEnvelope` in event schema.
+- Added optional `toolCallId` to `preToolUse`, `postToolUse`, `postToolUseFailure` payload schemas.
+- Extended `EmitOptions` in hook emitter to accept and stamp envelope-level tracing fields.
+- New `shared/state-machine/src/queries.ts`: `findEventsByTraceId`, `findToolFailures`, `pairToolEvents` with 3-tier pairing (exact `toolCallId` → exact `spanId` → FIFO heuristic).
+- Ingest service: `computePairingDiagnostics()` + `GET /diagnostics/pairing` endpoint.
+- Web UI: `InspectorEntry` tracing fields, `toInspectorEntry` passthrough, `EventInspector` conditional rendering, new `PairingDiagnosticsPanel` component.
+- Bootstrap: `emit-event.sh` and `emit-event.ps1` templates forward `VISUALIZER_TURN_ID`, `VISUALIZER_TRACE_ID`, `VISUALIZER_SPAN_ID`, `VISUALIZER_PARENT_SPAN_ID` env vars to `emit-event-cli.ts`.
+- `scripts/emit-event-cli.ts`: accepts `--turnId`, `--traceId`, `--spanId`, `--parentSpanId` args.
+- Smoke test extended to exercise all three pairing modes (toolCallId, spanId, FIFO heuristic).
+- Documentation rollout: `hooked-on-hooks.md` Lesson 9, `deterministic-state-engine.md` Phase 3, ADR-006 cross-links, tutorial parts 2/5/6, tracing plan v2 document.
+
+### Files Added/Updated
+
+- `shared/event-schema/src/schema.ts`
+- `shared/event-schema/test/schema.test.ts`
+- `packages/hook-emitter/src/index.ts`
+- `packages/hook-emitter/tsconfig.json` (added `"types": ["node"]`)
+- `packages/hook-emitter/test/emitter.test.ts`
+- `shared/state-machine/src/queries.ts` *(new)*
+- `shared/state-machine/src/index.ts`
+- `shared/state-machine/test/queries.test.ts` *(new)*
+- `packages/ingest-service/src/index.ts`
+- `packages/ingest-service/test/ingest.test.ts`
+- `packages/web-ui/src/types.ts`
+- `packages/web-ui/src/replay.ts`
+- `packages/web-ui/src/App.tsx`
+- `packages/web-ui/src/components/EventInspector.tsx`
+- `packages/web-ui/src/components/PairingDiagnosticsPanel.tsx` *(new)*
+- `packages/web-ui/test/replay.test.ts`
+- `scripts/emit-event-cli.ts`
+- `scripts/bootstrap-existing-repo.ts`
+- `scripts/smoke-e2e.ts`
+- `docs/roadmap/tracing-plan.md` *(new)*
+- `docs/specs/event-schema.md`
+- `docs/hooked-on-hooks.md`
+- `docs/features/deterministic-state-engine.md`
+- `docs/adr/006-task-posttooluse-subagent-synthesis.md`
+- `docs/tutorials/from-vanilla-to-visualizer.md`
+- `docs/tutorials/from-vanilla-to-visualizer/part-2.md`
+- `docs/tutorials/from-vanilla-to-visualizer/part-5.md`
+- `docs/tutorials/from-vanilla-to-visualizer/part-6.md`
 
 ## Agent Lifecycle Synthesis Learnings (Post-MVP)
 
@@ -88,19 +134,21 @@ All five planned features are complete and validated locally. Integration toolin
 ### Current Test Summary
 
 ```
-✓ packages/hook-emitter/test/emitter.test.ts       (3 tests)
-✓ packages/web-ui/test/replay.test.ts              (7 tests)
-✓ packages/ingest-service/test/ingest.test.ts      (6 tests)
-✓ shared/redaction/test/redaction.test.ts          (37 tests)
-✓ shared/event-schema/test/schema.test.ts           (4 tests)
-✓ shared/state-machine/test/state-machine.test.ts  (18 tests)
-✓ packages/web-ui/test/stateMapping.test.ts        (17 tests)
-✓ scripts/test/bootstrap.test.ts                   (15 tests)
-✓ packages/web-ui/test/filterState.test.ts         (15 tests)
-✓ scripts/test/unbootstrap.test.ts                  (7 tests)
-Test Files  10 passed (10)
-      Tests  129 passed (129)
-Coverage: lines 90.78%+
+✓ packages/hook-emitter/test/emitter.test.ts           (4 tests)
+✓ packages/web-ui/test/replay.test.ts                  (8 tests)
+✓ packages/ingest-service/test/ingest.test.ts          (8 tests)
+✓ shared/redaction/test/redaction.test.ts             (37 tests)
+✓ shared/event-schema/test/schema.test.ts              (5 tests)
+✓ shared/state-machine/test/state-machine.test.ts     (18 tests)
+✓ shared/state-machine/test/queries.test.ts            (5 tests)
+✓ packages/web-ui/test/stateMapping.test.ts           (17 tests)
+✓ packages/web-ui/test/filterState.test.ts            (15 tests)
+✓ packages/web-ui/test/ganttData.test.ts              (18 tests)
+✓ scripts/test/bootstrap.test.ts                      (15 tests)
+✓ scripts/test/unbootstrap.test.ts                     (7 tests)
+Test Files  12 passed (12)
+      Tests  205 passed (205)
+Coverage: lines ≥80% (all thresholds pass)
 ```
 
 ## Feature Progress
@@ -108,10 +156,11 @@ Coverage: lines 90.78%+
 | Feature | File | Status | Notes |
 |---|---|---|---|
 | Foundation Event Capture | docs/features/foundation-event-capture.md | Complete | Implemented and validated locally |
-| Deterministic State Engine | docs/features/deterministic-state-engine.md | Complete | Implemented and validated locally |
+| Deterministic State Engine | docs/features/deterministic-state-engine.md | Complete | Implemented and validated locally; Phase 3 (Tracing v2) complete |
 | Privacy Retention and Export Controls | docs/features/privacy-retention-and-export-controls.md | Complete | Implemented and validated locally |
 | Live Visualization Board | docs/features/live-visualization-board.md | Complete | Implemented and validated locally |
 | Replay and Session Review | docs/features/replay-and-session-review.md | Complete | Implemented and validated locally |
+| Tracing v2 (Event-Stream Correlation) | docs/roadmap/tracing-plan.md | Complete | Phase A+B complete; Phase C (optional SQLite) deferred |
 
 ## Completed Work: Feature 5 (RPLY)
 

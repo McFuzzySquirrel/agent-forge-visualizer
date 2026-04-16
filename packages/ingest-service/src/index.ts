@@ -4,9 +4,47 @@ import { PassThrough } from "node:stream";
 import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import { parseEvent, type EventEnvelope } from "../../../shared/event-schema/src/index.js";
-import { rebuildState, reduceEvent, initialSessionState, type SessionState } from "../../../shared/state-machine/src/index.js";
+import { rebuildState, reduceEvent, initialSessionState, pairToolEvents, type SessionState } from "../../../shared/state-machine/src/index.js";
 
 export type { SessionState };
+
+interface PairingDiagnostics {
+  totalPairs: number;
+  byMode: {
+    toolCallId: number;
+    spanId: number;
+    heuristic: number;
+  };
+  unmatched: {
+    preToolUse: number;
+    postToolUse: number;
+  };
+}
+
+function computePairingDiagnostics(events: EventEnvelope[]): PairingDiagnostics {
+  const pairs = pairToolEvents(events);
+  const byMode: PairingDiagnostics["byMode"] = {
+    toolCallId: 0,
+    spanId: 0,
+    heuristic: 0,
+  };
+
+  for (const pair of pairs) {
+    byMode[pair.pairingMode] += 1;
+  }
+
+  const preCount = events.filter((event) => event.eventType === "preToolUse").length;
+  const postCount = events.filter((event) => event.eventType === "postToolUse" || event.eventType === "postToolUseFailure").length;
+
+  return {
+    totalPairs: pairs.length,
+    byMode,
+    unmatched: {
+      preToolUse: Math.max(0, preCount - pairs.length),
+      postToolUse: Math.max(0, postCount - pairs.length),
+    },
+  };
+}
 
 export async function parseJsonlFile(filePath: string): Promise<EventEnvelope[]> {
   const content = await readFile(filePath, "utf8");
@@ -211,6 +249,11 @@ export async function createIngestServer(): Promise<FastifyInstance> {
 
   server.get("/events", async () => {
     return { count: acceptedEvents.length, events: acceptedEvents };
+  });
+
+  server.get("/diagnostics/pairing", async () => {
+    const diagnostics = computePairingDiagnostics(acceptedEvents);
+    return diagnostics;
   });
 
   /**

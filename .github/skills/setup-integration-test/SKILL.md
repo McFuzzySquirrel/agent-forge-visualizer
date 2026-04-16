@@ -3,14 +3,14 @@ name: setup-integration-test
 description: >
   Process for creating a fixture-driven integration test that exercises the
   full hook-emitter → JSONL → ingest-service → state-machine → web-UI pipeline
-  for the Copilot Agent Activity Visualizer. Use this skill whenever you need
+  for the Copilot Activity Visualiser. Use this skill whenever you need
   to write an end-to-end integration test without requiring a live Copilot CLI
   session or a running browser.
 ---
 
 # Skill: Set Up a Fixture-Based Integration Test
 
-Integration tests for the Copilot Agent Activity Visualizer verify that
+Integration tests for the Copilot Activity Visualiser verify that
 events flow correctly through the entire pipeline from emission to state
 derivation. Because the pipeline spans four packages, integration tests use
 pre-built JSONL fixture files and mock transports rather than real CLI runs.

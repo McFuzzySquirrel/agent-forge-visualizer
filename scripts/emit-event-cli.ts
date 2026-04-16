@@ -10,6 +10,10 @@ interface Args {
   jsonlPath?: string;
   httpEndpoint?: string;
   storePrompts?: string;
+  turnId?: string;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -77,7 +81,11 @@ async function main(): Promise<void> {
     sessionId: args.sessionId,
     source: "copilot-cli",
     httpEndpoint: args.httpEndpoint,
-    storePrompts: args.storePrompts === "true"
+    storePrompts: args.storePrompts === "true",
+    turnId: args.turnId || undefined,
+    traceId: args.traceId || undefined,
+    spanId: args.spanId || undefined,
+    parentSpanId: args.parentSpanId || undefined,
   });
 
   if (!result.accepted) {

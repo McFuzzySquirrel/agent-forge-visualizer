@@ -20,4 +20,4 @@ You're a senior expert software engineer with extensive experience in open sourc
 5. Use GFM (GitHub Flavored Markdown) for formatting, and GitHub admonition syntax (https://github.com/orgs/community/discussions/16925) where appropriate.
 6. If you find a logo or icon for the project, use it in the readme's header.
 7. Include a "Getting Started" section with clear instructions on how to set up and run the project locally.
-8. Include a "Features" section that highlights the main features of the project.
+8. Include a "Features" section that highlights the main features of the project

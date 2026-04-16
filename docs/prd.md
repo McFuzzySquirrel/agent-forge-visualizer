@@ -1,8 +1,8 @@
-# Copilot Agent Activity Visualizer PRD
+# Copilot Activity Visualiser PRD
 
 ## 1. Overview
 
-**Product Name:** Copilot Agent Activity Visualizer  
+**Product Name:** Copilot Activity Visualiser  
 **Summary:** A standalone, local-first visualization product that captures Copilot CLI activity and renders live execution state, timeline replay, and failure context so developers can understand agent workflows without manually parsing transcripts.  
 **Target Platform:** Linux, macOS, and Windows developer laptops (MVP), local browser UI plus Copilot CLI hook integration.  
 **Key Constraints:** Local-first operation, offline compatibility, strict redaction before persist/transmit, optional integration with Agent Forge and EJS metadata, event-to-render latency under 1 second, and separate project packaging from Agent Forge core.
@@ -16,6 +16,7 @@
 | 1.0 | 2026-04-12 | GitHub Copilot | Initial PRD from product vision, architecture research, schema, privacy spec, roadmap, and ADR-001 |
 | 1.1 | 2026-04-12 | GitHub Copilot | Finalized MVP decisions: include Windows support, prompt storage opt-in only, lock ingest service on Fastify |
 | 1.2 | 2026-04-14 | GitHub Copilot | Post-MVP alignment: updated TypeScript version to match installed 5.x, replaced pixel-art UI references with accurate descriptions, marked all implementation phases complete, added bootstrap/unbootstrap tooling |
+| 1.3 | 2026-04-17 | GitHub Copilot | Tracing v2 (Phase A/B): event-stream correlation fields, pairing diagnostics endpoint, UI inspector metadata, PairingDiagnosticsPanel, bootstrap tracing env var forwarding, smoke test extended, documentation rollout |
 
 ---
 
@@ -192,6 +193,7 @@ agent-forge-visualizer/
 | FR-EV-03 | Malformed events must be rejected with error telemetry and must not crash capture. | Must |
 | FR-EV-04 | Event IDs must be unique per session. | Must |
 | FR-EV-05 | Schema compatibility mode must support additive minor-version fields. | Should |
+| FR-EV-06 | Event envelopes may optionally carry `turnId`, `traceId`, `spanId`, `parentSpanId` correlation fields; tool payloads may carry `toolCallId`. All are backward-compatible additions. | Should |
 
 ### 8.2 Ingestion and State Management
 
@@ -201,6 +203,8 @@ agent-forge-visualizer/
 | FR-ST-02 | State transitions must map to the renderer state mapping defined in schema spec. | Must |
 | FR-ST-03 | State machine outputs must be deterministic for identical event sequences. | Must |
 | FR-ST-04 | Restart recovery must rebuild current session state from persisted logs. | Should |
+| FR-ST-05 | Ingestion service must expose a pairing diagnostics endpoint (`GET /diagnostics/pairing`) reporting exact-match vs. heuristic pair counts. | Should |
+| FR-ST-06 | Tool event pairing must use a 3-tier strategy: exact `toolCallId` match → exact `spanId` match → FIFO heuristic by tool name. | Should |
 
 ### 8.3 Live Visualization UI
 
@@ -353,6 +357,18 @@ Compliance position (MVP): no explicit regulated domain target is declared yet; 
 - [x] Stub hook generation with `--create-hooks` flag.
 - [x] Prefixed hook naming with `--prefix` flag.
 
+### Phase 7: Tracing v2 — Event-Stream Correlation (Post-MVP)
+- [x] Add optional `turnId`, `traceId`, `spanId`, `parentSpanId` to `BaseEnvelope`.
+- [x] Add optional `toolCallId` to `preToolUse`, `postToolUse`, `postToolUseFailure` payloads.
+- [x] Extend `EmitOptions` and `emit-event-cli.ts` to stamp and forward tracing fields.
+- [x] Implement `pairToolEvents` with 3-tier pairing in `shared/state-machine/src/queries.ts`.
+- [x] Expose `GET /diagnostics/pairing` in ingest service.
+- [x] Surface pairing mode counts in web UI (`PairingDiagnosticsPanel`).
+- [x] Conditionally render tracing fields in `EventInspector`.
+- [x] Forward `VISUALIZER_TURN_ID`/`TRACE_ID`/`SPAN_ID`/`PARENT_SPAN_ID` from generated emitter scripts.
+- [x] Extend smoke test to verify all three pairing modes end-to-end.
+- [x] Documentation rollout across hooked-on-hooks, tutorials, state-engine feature doc, ADR-006.
+
 ---
 
 ## 15. Testing Strategy
@@ -406,6 +422,8 @@ Telemetry policy: default to local metrics only; no cloud telemetry in MVP defau
 8. Architecture remains decoupled from Agent Forge core and usable standalone.
 9. MVP support is verified on Linux, macOS, and Windows.
 10. Prompt content persistence is disabled by default and requires explicit opt-in.
+11. Tool event pairing diagnostics endpoint returns accurate mode counts (toolCallId / spanId / heuristic) for any ingested session.
+12. Events with optional correlation IDs (`turnId`, `traceId`, `spanId`, `toolCallId`) receive exact pairing; events without fall back gracefully to FIFO heuristic with no data loss.
 
 ---
 

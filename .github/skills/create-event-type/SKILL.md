@@ -10,7 +10,7 @@ description: >
 
 # Skill: Create a New Event Type
 
-Adding a new event type to the Copilot Agent Activity Visualizer requires
+Adding a new event type to the Copilot Activity Visualiser requires
 coordinated changes across four packages in a specific order. This skill
 walks through each step with the correct sequence, templates, and validation
 checkpoints so nothing is missed.

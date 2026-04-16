@@ -42,6 +42,10 @@ export interface InspectorEntry {
   eventType: string;
   timestamp: string;
   sessionId: string;
+  turnId?: string;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
   payload: Record<string, unknown>;
 }
 

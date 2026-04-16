@@ -58,6 +58,15 @@ This feature does not own UI components directly; it exposes state snapshots and
 - [x] Add restart recovery from persisted logs.
 - [x] Validate latency and reliability on representative local runs.
 
+### Phase 3: Event Correlation (Tracing v2 Phase A/B)
+- [x] Add optional `turnId`, `traceId`, `spanId`, `parentSpanId` to `BaseEnvelope`.
+- [x] Add optional `toolCallId` to `preToolUse`, `postToolUse`, `postToolUseFailure` payloads.
+- [x] Implement `pairToolEvents` with 3-tier pairing: exact `toolCallId` → exact `spanId` → FIFO heuristic (see `shared/state-machine/src/queries.ts`).
+- [x] Expose `GET /diagnostics/pairing` in ingest service for live pairing mode counts.
+- [x] Surface pairing diagnostics in the web UI (`PairingDiagnosticsPanel`).
+
+See [Tracing Plan v2](../roadmap/tracing-plan.md) for design rationale and the phased rollout plan.
+
 ---
 
 ## 6. Testing Strategy
@@ -87,4 +96,5 @@ Key test scenarios:
 
 | # | Question | Default Assumption |
 |---|----------|--------------------|
+| 2 | Should event correlation IDs (turnId/traceId/spanId/toolCallId) be required or optional? | Optional with FIFO heuristic fallback — see [Tracing Plan v2](../roadmap/tracing-plan.md) |
 | 1 | Should state snapshots be materialized periodically for faster cold-start recovery? | Use event replay first; snapshots can be added post-MVP |

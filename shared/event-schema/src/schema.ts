@@ -25,7 +25,11 @@ const BaseEnvelope = z.object({
   timestamp: z.string().datetime({ offset: true }),
   sessionId: z.string().min(1),
   source: z.literal("copilot-cli"),
-  repoPath: z.string().min(1)
+  repoPath: z.string().min(1),
+  turnId: z.string().min(1).optional(),
+  traceId: z.string().min(1).optional(),
+  spanId: z.string().min(1).optional(),
+  parentSpanId: z.string().min(1).optional()
 });
 
 const PayloadSchemas = {
@@ -36,18 +40,21 @@ const PayloadSchemas = {
   }).catchall(z.unknown()),
   preToolUse: z.object({
     toolName: z.string().min(1),
-    toolArgs: z.record(z.string(), z.unknown()).optional()
+    toolArgs: z.record(z.string(), z.unknown()).optional(),
+    toolCallId: z.string().min(1).optional()
   }).catchall(z.unknown()),
   postToolUse: z.object({
     toolName: z.string().min(1),
     status: z.literal("success"),
-    durationMs: z.number().int().nonnegative().optional()
+    durationMs: z.number().int().nonnegative().optional(),
+    toolCallId: z.string().min(1).optional()
   }).catchall(z.unknown()),
   postToolUseFailure: z.object({
     toolName: z.string().min(1),
     status: z.literal("failure"),
     durationMs: z.number().int().nonnegative().optional(),
-    errorSummary: z.string().optional()
+    errorSummary: z.string().optional(),
+    toolCallId: z.string().min(1).optional()
   }).catchall(z.unknown()),
   subagentStart: z.object({
     agentName: z.string().min(1),

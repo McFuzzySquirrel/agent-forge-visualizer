@@ -233,9 +233,17 @@ interface Props {
   sessionCompleted?: boolean;
   /** When true, the visualization state is idle — pause animations for running bars. */
   isIdle?: boolean;
+  /** Optional callback when a segment bar is selected. */
+  onSegmentSelect?: (segment: GanttSegment, row: GanttRow) => void;
+  /** Currently selected time window, used to highlight the active segment. */
+  selectedPeriod?: {
+    startTime: number;
+    endTime: number;
+    label: string;
+  } | null;
 }
 
-export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
+export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect, selectedPeriod }: Props) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [now, setNow] = useState(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -245,9 +253,14 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
   const latestRunningId = useMemo(() => findLatestRunningSegmentId(rows), [rows]);
 
   // Tick `now` forward while there are running segments, session is active, and not idle
-  const hasRunning = !sessionCompleted && !isIdle && rows.some((r) =>
-    r.segments.some((s) => s.endTime === null)
-  );
+  const hasRunning =
+    !sessionCompleted &&
+    !isIdle &&
+    rows.some((r) =>
+      r.segments.some(
+        (s) => s.endTime === null && s.status === "running" && s.category !== "session"
+      )
+    );
 
   useEffect(() => {
     if (!hasRunning) return;
@@ -382,6 +395,11 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                 const isRunning = seg.endTime === null;
                 const isIdleGap = seg.status === "idle" && seg.eventType === "idle";
                 const isCollapsed = seg.eventType === "collapsed";
+                const isSelected =
+                  !!selectedPeriod &&
+                  selectedPeriod.startTime === seg.startTime &&
+                  selectedPeriod.endTime === (seg.endTime ?? now) &&
+                  selectedPeriod.label === seg.label;
 
                 // R3: Only the latest running segment pulses
                 const isLatestRunning = seg.id === latestRunningId;
@@ -406,6 +424,14 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                     key={seg.id}
                     onMouseMove={(e) => handleMouseMove(seg, e)}
                     onMouseLeave={handleMouseLeave}
+                    onClick={() => onSegmentSelect?.(seg, row)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSegmentSelect?.(seg, row);
+                      }
+                    }}
+                    tabIndex={0}
                     style={{
                       position: "absolute",
                       left: `${startPct}%`,
@@ -425,6 +451,13 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                         : "none",
                       // R3: Orphaned running bars get a dashed right border
                       borderRight: isOrphanedRunning ? "2px dashed rgba(255,255,255,0.3)" : "none",
+                      outline: isSelected ? "2px solid #f8fafc" : "none",
+                      outlineOffset: isSelected ? 1 : 0,
+                      boxShadow: isSelected
+                        ? "0 0 0 2px rgba(59, 130, 246, 0.5), 0 0 18px rgba(59, 130, 246, 0.35)"
+                        : isRunning
+                          ? undefined
+                          : "none",
                       // R5: Collapsed bars get a striped pattern overlay
                       backgroundImage: isCollapsed
                         ? `repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 6px)`
@@ -436,7 +469,8 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                       gap: 3,
                       overflow: "hidden",
                     }}
-                    role="img"
+                    role="button"
+                    aria-pressed={isSelected}
                     aria-label={`${seg.label}: ${seg.status}${
                       durationLabel ? ` (${durationLabel})` : ""
                     }`}
