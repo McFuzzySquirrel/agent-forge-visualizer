@@ -77,6 +77,26 @@ Open `http://127.0.0.1:5173`.
 > [!TIP]
 > Use `npm run smoke:e2e` to run a full emitter -> ingest -> state-stream runtime verification.
 
+### 2-Minute Local Demo
+
+With ingest and web UI running, emit two events into a throwaway session:
+
+```bash
+SESSION_ID="demo-$(date +%s)"
+npm run emit:event -- --eventType sessionStart --payload '{}' --sessionId "$SESSION_ID" --repoPath "$PWD" --jsonlPath "$PWD/.tmp/demo-session.jsonl" --httpEndpoint "http://127.0.0.1:7070/events"
+npm run emit:event -- --eventType userPromptSubmitted --payload '{"prompt":"Run a quick visualizer demo"}' --sessionId "$SESSION_ID" --repoPath "$PWD" --jsonlPath "$PWD/.tmp/demo-session.jsonl" --httpEndpoint "http://127.0.0.1:7070/events"
+```
+
+You should immediately see the new session and prompt event appear in the live UI.
+
+> [!NOTE]
+> If you only want offline capture, keep the same commands but omit `--httpEndpoint`. Events will still be persisted to JSONL.
+
+### Troubleshooting Local Startup
+
+- If `npm run serve:ingest` exits immediately, ensure Node.js `>=24` (`node -v`) and confirm port `7070` is free (`lsof -i :7070`).
+- If the web UI starts but no events appear, check ingest is listening on `http://127.0.0.1:7070`, verify emit commands include the same `--httpEndpoint`, and inspect JSONL output under `.tmp/` or `.visualizer/logs/`.
+
 ## Integrate an Existing Repo
 
 Bootstrap integration in one command:
