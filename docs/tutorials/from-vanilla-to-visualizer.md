@@ -76,6 +76,7 @@ What you should expect by part:
 - **Part 4:** synthesized `postToolUseFailure` and `subagentStart` can appear
 - **Part 5:** JSONL still grows even when HTTP delivery is unavailable
 - **Part 6:** full enhanced pipeline is in place end-to-end
+- **After Part 6:** the **Tool Pairing** bar in the UI shows how many `preToolUse`→`postToolUse` pairs resolved exactly vs. by heuristic — emit optional `turnId`/`traceId`/`spanId` fields to improve the score
 
 ## Next Steps
 
@@ -92,7 +93,12 @@ What you should expect by part:
   - [ADR-006: Task postToolUse subagent synthesis](../adr/006-task-posttooluse-subagent-synthesis.md)
 
 - **Read the practitioner guide:** [Hooked on Hooks](../hooked-on-hooks.md) —
-  lessons learned, best practices, and patterns from building the visualiser.
+  lessons learned, best practices, and patterns from building the visualiser
+  (including Lesson 9 on event-stream-first correlation).
+
+- **Go deeper on tracing:** [Tracing Plan v2](../roadmap/tracing-plan.md) —
+  how to emit `turnId`/`traceId`/`spanId`/`toolCallId` for exact tool-call
+  pairing, and what the ingest diagnostics endpoint tells you about your session.
 
 - **Official GitHub docs:**
   - [Hooks configuration reference](https://docs.github.com/en/copilot/reference/hooks-configuration)

@@ -35,6 +35,31 @@ try {
 }
 ```
 
+### Optional correlation IDs (Tracing v2)
+
+The emitter accepts optional correlation fields in `EmitOptions` that are
+stamped into the event envelope before writing:
+
+```typescript
+import { emitEvent } from "@visualizer/hook-emitter";
+
+await emitEvent("preToolUse", payload, sessionId, {
+  turnId:       process.env.COPILOT_TURN_ID,
+  traceId:      process.env.COPILOT_TRACE_ID,
+  spanId:       process.env.COPILOT_SPAN_ID,
+  parentSpanId: process.env.COPILOT_PARENT_SPAN_ID,
+});
+```
+
+All fields are optional. If your hook environment doesn't supply them, the
+ingest service still pairs `preToolUse` → `postToolUse` events using a
+FIFO heuristic fallback. Supplying a `toolCallId` in the payload gives the
+precisest pairing with no heuristic needed.
+
+The live pairing breakdown is visible in the web UI's **Tool Pairing** bar
+(polling `GET /diagnostics/pairing`) so you can see how much of your session
+is exact-matched vs. heuristic-matched at a glance.
+
 If the ingest service is down, events pile up in the JSONL file. When it comes
 back, you can replay them:
 

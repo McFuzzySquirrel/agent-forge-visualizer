@@ -112,6 +112,21 @@ exit 0
 | 5 | Emit pattern | JSONL-first, HTTP-optional, redact-before-persist |
 | 6 | Bootstrap | One command generates everything — vanilla or enhanced |
 
+### Going further: Tracing v2
+
+The visualiser now supports optional **event-stream correlation** — stamping
+`turnId`, `traceId`, `spanId`, and `toolCallId` into event envelopes so the
+ingest service can pair tool calls precisely rather than relying on FIFO
+heuristics.
+
+This is a purely additive, backward-compatible layer:
+- Old JSONL logs without these fields continue to replay and pair via heuristic.
+- New logs with these fields get exact pairing and richer inspector metadata.
+- The web UI shows live pairing mode counts in the **Tool Pairing** bar.
+
+See [Tracing Plan v2](../../roadmap/tracing-plan.md) for the full design and
+[Hooked on Hooks — Lesson 9](../../hooked-on-hooks.md) for the practical takeaway.
+
 ### Try it yourself
 
 1. Bootstrap one repo with `--vanilla` and another without it.

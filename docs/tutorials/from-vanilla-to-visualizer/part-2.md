@@ -47,6 +47,14 @@ Every event now has:
 | `source` | Always `"copilot-cli"` — makes multi-source ingestion possible |
 | `repoPath` | Ties the event to a specific repository |
 | `payload` | The hook-specific data, validated per event type |
+| `turnId` *(optional)* | Groups all events within one user-prompt turn |
+| `traceId` *(optional)* | Links events belonging to one logical operation chain |
+| `spanId` / `parentSpanId` *(optional)* | Forms a span tree for nested tool calls |
+
+The `turnId`, `traceId`, `spanId`, and `parentSpanId` fields are part of **Tracing v2**.
+They are fully optional — the ingest service pairs tool events without them using a
+FIFO heuristic fallback. Emit them when your hook environment can supply them for
+exact pairing. See [Tracing Plan v2](../../roadmap/tracing-plan.md) for the full design.
 
 ### Try it yourself
 
