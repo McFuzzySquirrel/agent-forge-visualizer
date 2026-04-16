@@ -133,6 +133,12 @@ jq -r '.eventType' /path/to/vanilla-repo/.github/hooks/logs/events.jsonl | sort 
 jq -r '.eventType' /path/to/enhanced-repo/.visualizer/logs/events.jsonl | sort | uniq -c
 ```
 
+### Optional visualizer checkpoint
+
+Run the optional checkpoint from [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md).
+At this final stage, the enhanced repo should provide the fullest live view:
+validated envelopes, enriched payloads, and synthesized lifecycle events.
+
 ---
 
 Prev: [Part 5](part-5.md) | Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md)

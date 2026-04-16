@@ -2,15 +2,6 @@
 
 Prev: [Part 4](part-4.md) | Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md) | Next: [Part 6](part-6.md)
 
-## Screenshot Placeholder
-
-![Placeholder screenshot for Part 5](../assets/tutorial-screenshots/from-vanilla-bash-part-5.png)
-
-**What this screenshot should show (Emit Pattern and Recovery):**
-- An emit run with the HTTP endpoint unavailable (or intentionally invalid).
-- New lines still appended to `.visualizer/logs/events.jsonl` during the outage.
-- A replay command or replay result showing recovery after ingest becomes available.
-
 
 ### Architecture: emit and forget
 
@@ -51,6 +42,9 @@ back, you can replay them:
 npm run replay:jsonl -- /path/to/events.jsonl
 ```
 
+You do **not** need the visualizer app running to validate this part. The core
+goal is proving local JSONL persistence even when HTTP delivery fails.
+
 ### Redaction
 
 Before writing to JSONL, the emitter runs a redaction pass that strips:
@@ -78,16 +72,34 @@ never crashes the host process.
 
 ### Try it yourself
 
-1. Stop the ingest service (or point to a non-listening endpoint).
-2. Run a session that emits several events.
-3. Confirm events still append to `.visualizer/logs/events.jsonl`.
-4. Restart the ingest path and run `npm run replay:jsonl -- /path/to/events.jsonl`.
-5. Verify replay restores events downstream.
+Part 1 bootstrapped the lab in vanilla mode, and Parts 2-4 continued from that setup.
+In current builds, vanilla bootstrap
+already creates `.visualizer/emit-event.sh`. Verify first:
+
+```bash
+ls -l /tmp/copilot-hooks-lab/.visualizer/emit-event.sh
+```
+
+If the file is missing in your environment, run:
+
+```bash
+npx tsx scripts/bootstrap-existing-repo.ts /tmp/copilot-hooks-lab --create-hooks
+```
+
+Then run this sequence:
+
+1. Point HTTP delivery to a non-listening endpoint.
+2. Emit an event while HTTP is effectively down.
+3. Confirm the event still appends to `/tmp/copilot-hooks-lab/.visualizer/logs/events.jsonl`.
+4. Optional: if you later run ingest, replay the saved JSONL file.
+5. Optional: verify replay restores events downstream.
 
 Reliable way to simulate HTTP down while preserving JSONL writes:
 
 ```bash
 SESSION_ID="offline-$(date +%s)"
+cd /tmp/copilot-hooks-lab
+
 VISUALIZER_HTTP_ENDPOINT="http://127.0.0.1:9999/events" \
   .visualizer/emit-event.sh sessionStart '{}' "$SESSION_ID" || true
 ```
@@ -95,9 +107,23 @@ VISUALIZER_HTTP_ENDPOINT="http://127.0.0.1:9999/events" \
 Verify the event was still persisted locally:
 
 ```bash
-tail -n 10 .visualizer/logs/events.jsonl \
+tail -n 10 /tmp/copilot-hooks-lab/.visualizer/logs/events.jsonl \
   | jq -r 'select(.sessionId=="'"$SESSION_ID"'") | .eventType'
 ```
+
+Replay once ingest is back:
+
+```bash
+npm run replay:jsonl -- /tmp/copilot-hooks-lab/.visualizer/logs/events.jsonl
+```
+
+If ingest is not running yet, you can stop after the JSONL verification step.
+
+### Optional visualizer checkpoint
+
+Run the optional checkpoint from [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md).
+This part is still valid without the app running, but if ingest is up you can
+visually confirm replayed events reappear downstream.
 
 ---
 

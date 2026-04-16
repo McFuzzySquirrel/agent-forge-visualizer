@@ -46,6 +46,37 @@ Browse all tutorial tracks and parts:
 - Start here: [Part 1](./from-vanilla-to-visualizer/part-1.md)
 - Jump to finale: [Part 6](./from-vanilla-to-visualizer/part-6.md)
 
+## Optional Visualizer Checkpoint (After Any Part)
+
+You can run the visualizer UI after each part to see how your changes affect
+live rendering. This is optional; the tutorial itself can be completed with
+CLI + JSONL checks only.
+
+1. In the `agent-forge-visualizer` repo, start ingest:
+
+  ```bash
+  npm run serve:ingest
+  ```
+
+2. In a second terminal, start the web UI:
+
+  ```bash
+  npm run dev --workspace=packages/web-ui
+  ```
+
+3. In `/tmp/copilot-hooks-lab`, run a short Copilot CLI session.
+
+4. Open `http://127.0.0.1:5173` and inspect the latest session.
+
+What you should expect by part:
+
+- **Part 1:** mostly vanilla logs only (`.github/hooks/logs/events.jsonl`), so UI may be sparse
+- **Part 2:** envelope-based `preToolUse` events start appearing in `.visualizer/logs/events.jsonl`
+- **Part 3:** `preToolUse` payloads include richer context fields when available
+- **Part 4:** synthesized `postToolUseFailure` and `subagentStart` can appear
+- **Part 5:** JSONL still grows even when HTTP delivery is unavailable
+- **Part 6:** full enhanced pipeline is in place end-to-end
+
 ## Next Steps
 
 - **Explore the codebase:**

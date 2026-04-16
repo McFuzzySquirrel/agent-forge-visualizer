@@ -2,15 +2,6 @@
 
 Prev: [Part 2](part-2.md) | Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md) | Next: [Part 4](part-4.md)
 
-## Screenshot Placeholder
-
-![Placeholder screenshot for Part 3](../assets/tutorial-screenshots/from-vanilla-bash-part-3.png)
-
-**What this screenshot should show (Payload Enrichment Comparison):**
-- A side-by-side view of one vanilla JSONL line and one enriched JSONL line.
-- Enriched fields visible such as `agentName` and `taskDescription`.
-- An example where empty enrichment fields are omitted instead of stored as empty strings.
-
 
 ### Why vanilla payloads aren't enough
 
@@ -102,47 +93,105 @@ downstream consumers with noise.
 
 ### Try it yourself
 
-1. In one hook script, add a small `_vjq` helper and 3 fallback extracts:
-   `toolName`, `agentName`, and `taskDescription`.
-2. Build payload JSON with `jq -nc`, adding fields only when non-empty.
-3. Run a prompt that invokes at least one tool.
-4. Compare one vanilla line and one enriched line side by side.
-5. Check that empty fields are omitted, not stored as empty strings.
-
-Example drop-in block (bash):
+We'll extend the `pre-tool-use.sh` change from Part 2. If you completed that lab,
+your hook already ends with this block:
 
 ```bash
-# Read stdin once and provide a safe jq accessor.
-_VIZ_STDIN=$(cat 2>/dev/null || echo '{}')
-if [ -z "$_VIZ_STDIN" ]; then _VIZ_STDIN='{}'; fi
-_vjq() { echo "$_VIZ_STDIN" | jq -r "$1" 2>/dev/null || true; }
+SESSION_ID=${COPILOT_SESSION_ID:-"lab-$(date +%s)"}
 
-# 3 fallback extracts
-TOOL_NAME="${TOOL_NAME:-$(_vjq '.tool_name // .toolName // empty')}"
-AGENT_NAME="${AGENT_NAME:-$(_vjq '.agent_name // .agentName // .agent.name // empty')}"
-TASK_DESC="${TASK_DESC:-$(_vjq '.task_description // .taskDescription // .task // empty')}"
-
-# Build payload with conditional fields (omit empties)
-_VIZ_PAYLOAD=$(jq -nc \
+PAYLOAD_JSON=$(jq -nc \
   --arg tool "$TOOL_NAME" \
-  --arg agent "$AGENT_NAME" \
-  --arg task "$TASK_DESC" \
-  '{"toolName":$tool}
-   + (if ($agent|length)>0 then {"agentName":$agent} else {} end)
-   + (if ($task|length)>0 then {"taskDescription":$task} else {} end)')
+  --arg args "$TOOL_ARGS" \
+  '{
+    toolName: $tool,
+    toolArgs: (($args | fromjson?) // {})
+  }')
 
-# Emit enriched event
-if [ -x "${REPO_ROOT}/.visualizer/emit-event.sh" ]; then
-  "${REPO_ROOT}/.visualizer/emit-event.sh" preToolUse "$_VIZ_PAYLOAD" "$SESSION_ID" >&2 || true
-fi
+.visualizer/emit-event.sh preToolUse "$PAYLOAD_JSON" "$SESSION_ID"
 ```
 
-Quick compare command:
+1. Open `/tmp/copilot-hooks-lab/.github/hooks/visualizer/pre-tool-use.sh`.
 
-```bash
-tail -n 1 .github/hooks/logs/events.jsonl
-tail -n 1 .visualizer/logs/events.jsonl
-```
+2. Replace the `PAYLOAD_JSON` block above with this enriched version that adds
+   agent and task context via fallback extracts:
+
+   ```bash
+   # Re-read stdin via a safe accessor (stdin was already consumed above,
+   # so use the $INPUT variable the script already captured)
+   _vjq() { echo "$INPUT" | jq -r "$1" 2>/dev/null || true; }
+
+   # Fallback extracts for enrichment fields
+   AGENT_NAME="${AGENT_NAME:-$(_vjq '.agent_name // .agentName // .agent.name // empty')}"
+   TASK_DESC="${TASK_DESC:-$(_vjq '.task_description // .taskDescription // .task // empty')}"
+
+   SESSION_ID=${COPILOT_SESSION_ID:-"lab-$(date +%s)"}
+
+   # Build enriched payload — omit fields that are empty
+   PAYLOAD_JSON=$(jq -nc \
+     --arg tool "$TOOL_NAME" \
+     --arg args "$TOOL_ARGS" \
+     --arg agent "$AGENT_NAME" \
+     --arg task "$TASK_DESC" \
+     '{"toolName":$tool, "toolArgs":(($args | fromjson?) // {})}
+      + (if ($agent|length)>0 then {"agentName":$agent} else {} end)
+      + (if ($task|length)>0 then {"taskDescription":$task} else {} end)')
+
+   .visualizer/emit-event.sh preToolUse "$PAYLOAD_JSON" "$SESSION_ID"
+   ```
+
+   > **Note:** `.visualizer/emit-event.sh` is only present after a full bootstrap (Part 1).
+
+3. Run a short Copilot CLI session from inside `/tmp/copilot-hooks-lab`.
+
+4. Compare the output to a vanilla line from Part 1. Your enriched output will look like this:
+
+   ```json
+   {
+     "schemaVersion": "1.0.0",
+     "eventId": "057608f6-177c-48dd-8123-4d0c1d0dff12",
+     "eventType": "preToolUse",
+     "timestamp": "2026-04-16T20:52:37.979Z",
+     "sessionId": "lab-1776372757",
+     "source": "copilot-cli",
+     "repoPath": "/tmp/copilot-hooks-lab",
+     "payload": {
+       "toolName": "report_intent",
+       "toolArgs": { "intent": "Examining sessionStart hook" }
+     }
+   }
+   ```
+
+   > **Why no `agentName` or `taskDescription`?** Those fields only appear when the
+   > Copilot CLI actually sends them in stdin. For simple single-agent sessions they
+   > are often absent — the conditional builder correctly omits them rather than
+   > including empty strings. In a multi-agent session with subagents you will start
+   > seeing them populate.
+
+5. Check that empty fields are omitted — if `agentName` wasn't in the stdin payload,
+   it should not appear as an empty string in the output.
+
+6. Now inspect the **vanilla** log and notice what changed:
+
+   ```json
+   { "event": "userPromptSubmitted", "timestamp": "1776372750868", "prompt": "what can I do with sessionStart?", "cwd": "/tmp/copilot-hooks-lab" }
+   { "event": "postToolUse", "timestamp": "1776372760155", "toolName": "report_intent", "resultType": "success", "cwd": "/tmp/copilot-hooks-lab" }
+   { "event": "postToolUse", "timestamp": "1776372760222", "toolName": "view", "resultType": "success", "cwd": "/tmp/copilot-hooks-lab" }
+   { "event": "agentStop", "timestamp": "1776372774996", "cwd": "/tmp/copilot-hooks-lab", "rawPayload": { "sessionId": "b24e89d8-...", "stopReason": "end_turn" } }
+   ```
+
+   > **`preToolUse` is gone from the vanilla log.** That's expected — you migrated that
+   > hook to the visualiser emit. The remaining hooks (`postToolUse`, `userPromptSubmitted`,
+   > `agentStop`) are still vanilla and still write to `.github/hooks/logs/events.jsonl`.
+   >
+   > This is the migration pattern: hook by hook, you move events from the raw log into
+   > the validated, enveloped JSONL. By the time you finish Part 4's full bootstrap, all
+   > hooks will be migrated and the vanilla log will be empty.
+
+### Optional visualizer checkpoint
+
+Run the optional checkpoint from [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md).
+After this part, `preToolUse` cards should include richer payload context when
+Copilot provides it (for example, task/agent metadata in multi-agent runs).
 
 ---
 
