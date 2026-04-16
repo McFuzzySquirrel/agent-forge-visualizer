@@ -286,7 +286,51 @@ your visualization doesn't show idle periods, it hides half the story.
 
 See [ADR-005](adr/005-idle-aware-gantt-and-ui-polish.md) for the full design
 rationale.
+### Lesson 9: Correlate Events Across Turns — Event-Stream First
 
+Once you have a working event pipeline, the next question is: *how do I link a
+`preToolUse` to its matching `postToolUse`?* It sounds obvious — just match them
+by tool name. But in multi-agent sessions with parallel tool calls, names collide.
+
+Our answer is **event-stream-first correlation**. Instead of reaching for a
+database, we added four optional fields to every event envelope:
+
+```json
+{
+  "eventId": "uuid",
+  "eventType": "preToolUse",
+  "turnId": "turn-abc",
+  "traceId": "trace-xyz",
+  "spanId": "span-001",
+  "parentSpanId": "span-000",
+  "payload": { "toolCallId": "call-42", "toolName": "bash" }
+}
+```
+
+- **`turnId`** — groups all events within a single user-prompt turn.
+- **`traceId`** — links all events that belong to one logical operation chain.
+- **`spanId` / `parentSpanId`** — form a span tree within a trace.
+- **`toolCallId`** — pairs a `preToolUse` to its exact `postToolUse` even when
+  two concurrent calls use the same tool name.
+
+All of these are **optional**. Existing logs without them still replay and
+correlate, using a tiered fallback: exact `toolCallId` match → exact `spanId`
+match → FIFO heuristic by tool name. This means you can adopt correlation IDs
+gradually — emit them from your hooks when you have them; the state machine
+handles both cases.
+
+The pairing logic lives in `shared/state-machine/src/queries.ts`
+(`pairToolEvents`, `findEventsByTraceId`, `findToolFailures`). The ingest
+service exposes a live diagnostic breakdown at `GET /diagnostics/pairing`
+that shows how many pairs resolved each way — useful for measuring how much
+your hooks are helping.
+
+**The golden rule for correlation:** Keep the IDs in the event stream, not in a
+sidecar database. That way, replaying a JSONL log is still all you need to
+reconstruct full session context — no external store required.
+
+See [Tracing Plan v2](roadmap/tracing-plan.md) for the full design rationale
+and phased rollout plan.
 ---
 
 ## Vanilla vs. Enhanced: What the Visualiser Adds
@@ -314,6 +358,8 @@ Here's how the vanilla and enhanced versions compare:
 | Secret redaction | ❌ | ✅ |
 | HTTP forwarding to ingest service | ❌ | ✅ |
 | Deterministic state rebuild from JSONL | ❌ | ✅ |
+| Optional turn/trace/span correlation IDs | ❌ | ✅ |
+| Tool-call pairing diagnostics endpoint | ❌ | ✅ |
 
 To understand exactly how we got from vanilla to enhanced, step by step, see
 the **[From Vanilla to Visualizer tutorial](tutorials/from-vanilla-to-visualizer.md)**.
@@ -490,6 +536,7 @@ Want to go deeper? Here are the official sources:
 | 9 | Isolate generated files in a subdirectory — clear ownership, no collisions |
 | 10 | Make idle time visible — gaps between events tell as much as the events themselves |
 | 11 | Keep hooks lightweight — capture the moment, process it elsewhere |
+| 12 | Correlate events in the stream, not in a sidecar DB — replay stays the source of truth |
 
 ---
 
