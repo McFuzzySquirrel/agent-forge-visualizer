@@ -66,6 +66,14 @@ a repo, run Copilot CLI, and inspect `.github/hooks/logs/events.jsonl` to see
 the raw payloads.
 
 1. Create a throwaway test repo.
+
+   ```powershell
+   mkdir "$env:TEMP/copilot-hooks-lab" -Force
+   cd "$env:TEMP/copilot-hooks-lab"
+   git init
+   mkdir ".github/hooks/logs" -Force
+   ```
+
 2. Copy the scripts from `docs/examples/vanilla-hooks/` into
    `.github/hooks/` (or wire them using your preferred hook setup).
 3. Run a short Copilot CLI session that triggers at least one tool call.

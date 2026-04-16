@@ -2,38 +2,6 @@
 
 This folder stores screenshots used by the split tutorial parts.
 
-## Automated Capture (v1)
-
-Generate all tutorial screenshots with:
-
-```bash
-npm run tutorial:screenshots
-```
-
-If Chromium is not installed for Playwright yet:
-
-```bash
-npx playwright install chromium
-```
-
-Options:
-
-- Render HTML capture cards only (no screenshots):
-
-	```bash
-	npm run tutorial:screenshots -- --render-only
-	```
-
-- Capture one track only:
-
-	```bash
-	npm run tutorial:screenshots -- --track bash
-	npm run tutorial:screenshots -- --track ps1
-	```
-
-The script writes intermediate HTML cards to `.tmp/tutorial-screenshot-html/`
-and PNG files to this folder.
-
 ## Naming Convention
 
 Use this filename pattern:
