@@ -2,15 +2,6 @@
 
 Prev: [Part 4](part-4.md) | Up: [From Vanilla to Visualizer (PowerShell)](../from-vanilla-to-visualizer-ps1.md) | Next: [Part 6](part-6.md)
 
-## Screenshot Placeholder
-
-![Placeholder screenshot for Part 5](../assets/tutorial-screenshots/from-vanilla-ps1-part-5.png)
-
-**What this screenshot should show (Emit Pattern and Recovery):**
-- An emit run with the HTTP endpoint unavailable (or intentionally invalid).
-- New lines still appended to `.visualizer/logs/events.jsonl` during the outage.
-- A replay command or replay result showing recovery after ingest becomes available.
-
 
 ### Architecture: emit and forget
 
@@ -50,6 +41,16 @@ back, you can replay them:
 ```powershell
 npm run replay:jsonl -- /path/to/events.jsonl
 ```
+
+The live pairing breakdown is visible in the web UI's **Tool Pairing** bar, so
+you can see how much of your session is exact-matched versus heuristic-matched
+at a glance.
+
+![Tool Pairing tooltip showing exact `toolCallId` correlation](../assets/tutorial-screenshots/ui-features/ui-pairing-tooltip.png)
+
+In the screenshot above, the hover tooltip explains why `by ID` is the
+highest-confidence match class: both tool lifecycle events carried the same
+`toolCallId`, so ingest did not need to fall back to `spanId` or FIFO pairing.
 
 ### Redaction
 
@@ -100,6 +101,11 @@ Get-Content .visualizer/logs/events.jsonl -Tail 30 |
   Where-Object { $_.sessionId -eq $SessionId } |
   Select-Object -ExpandProperty eventType
 ```
+
+If you run the web UI alongside this step, the filter controls make it easy to
+isolate just the replayed event classes or one actor/tool at a time.
+
+![Filters panel for isolating event types and actors during replay](../assets/tutorial-screenshots/ui-features/ui-filter-controls.png)
 
 ---
 

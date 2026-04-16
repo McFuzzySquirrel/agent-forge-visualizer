@@ -2,6 +2,10 @@
 
 This folder stores screenshots used by the split tutorial parts.
 
+The `ui-features/` subdirectory stores reusable screenshots for the live UI,
+including the overview, pairing diagnostics tooltip, selected timeline window,
+live activity board, replay controls, filters, and event inspector.
+
 ## Naming Convention
 
 Use this filename pattern:

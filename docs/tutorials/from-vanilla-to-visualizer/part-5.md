@@ -60,6 +60,12 @@ The live pairing breakdown is visible in the web UI's **Tool Pairing** bar
 (polling `GET /diagnostics/pairing`) so you can see how much of your session
 is exact-matched vs. heuristic-matched at a glance.
 
+![Tool Pairing tooltip showing exact `toolCallId` correlation](../assets/tutorial-screenshots/ui-features/ui-pairing-tooltip.png)
+
+In the screenshot above, the hover tooltip explains why `by ID` is the
+highest-confidence match class: both tool lifecycle events carried the same
+`toolCallId`, so ingest did not need to fall back to `spanId` or FIFO pairing.
+
 If the ingest service is down, events pile up in the JSONL file. When it comes
 back, you can replay them:
 
@@ -149,6 +155,8 @@ If ingest is not running yet, you can stop after the JSONL verification step.
 Run the optional checkpoint from [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md).
 This part is still valid without the app running, but if ingest is up you can
 visually confirm replayed events reappear downstream.
+
+![Filters panel for isolating event types and actors during replay](../assets/tutorial-screenshots/ui-features/ui-filter-controls.png)
 
 ---
 

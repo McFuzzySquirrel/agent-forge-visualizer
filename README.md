@@ -9,6 +9,11 @@ Visualize Copilot agent runtime activity in real time and replay sessions from p
 > **🎓 This project is also an interactive, hands-on learning experience.**
 > Beyond the visualiser itself, the repo includes guided tutorials and vanilla hook examples that walk you through Copilot CLI hooks from the ground up — starting with raw payloads and progressively adding schema validation, payload enrichment, event synthesis, and the emit pipeline.
 
+![UI overview of the live board, replay controls, filters, and inspector](docs/tutorials/assets/tutorial-screenshots/ui-features/ui-overview.png)
+
+See the [UI Feature Showcase](docs/tutorials/ui-feature-showcase.md) for a
+panel-by-panel walkthrough of the visualizer interface.
+
 ## 🎓 Learning & Tutorials
 
 Start here if you want the practical, step-by-step learning path:
@@ -16,6 +21,7 @@ Start here if you want the practical, step-by-step learning path:
 - **[Tutorial Index](docs/tutorials/README.md)** — choose your track (Bash/Linux or PowerShell) and jump to any tutorial part.
 - **[From Vanilla to Visualizer (Bash/Linux)](docs/tutorials/from-vanilla-to-visualizer.md)** — six-part walkthrough from raw hooks to full pipeline.
 - **[From Vanilla to Visualizer (PowerShell)](docs/tutorials/from-vanilla-to-visualizer-ps1.md)** — PowerShell-focused version of the same journey.
+- **[UI Feature Showcase](docs/tutorials/ui-feature-showcase.md)** — screenshot tour of the live board, replay controls, filters, pairing diagnostics, and inspector.
 - **[Vanilla Hook Examples](docs/examples/vanilla-hooks/)** — minimal `.sh` + `.ps1` scripts for all 8 hook types.
 - **[Hooked on Hooks](docs/hooked-on-hooks.md)** — practical patterns and lessons learned building this visualiser.
 
@@ -217,5 +223,6 @@ npm run replay:jsonl -- /path/to/events.jsonl
 
 - Product vision: `docs/product-vision.md`
 - Progress tracker: `docs/PROGRESS.md`
+- UI showcase: `docs/tutorials/ui-feature-showcase.md`
 - Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
 - Architecture decisions: `docs/adr/` — ADRs covering packaging, metadata, manifests, hook isolation, and UI polish

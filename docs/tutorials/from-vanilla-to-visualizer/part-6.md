@@ -2,14 +2,14 @@
 
 Prev: [Part 5](part-5.md) | Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md)
 
-## Screenshot Placeholder
+## Final UI Checkpoint
 
-![Placeholder screenshot for Part 6](../assets/tutorial-screenshots/from-vanilla-bash-part-6.png)
+![End-to-end visualizer overview after the full tutorial flow](../assets/tutorial-screenshots/ui-features/ui-overview.png)
 
-**What this screenshot should show (Bootstrap Outcome and Diff):**
-- Generated hook artifacts for a bootstrapped repo (manifest + hook stubs) visible in a file tree or editor.
-- A quick comparison of vanilla vs enhanced outputs (scripts and/or event type distribution).
-- One highlighted customization candidate (for example, a derived event or extra payload field).
+By Part 6, the visualizer is showing the full pipeline working together:
+pairing diagnostics, the timeline, the live activity board, replay controls,
+filters, the event inspector, and a narrowed event list for the selected time
+slice.
 
 
 ### The bootstrap command
@@ -126,6 +126,40 @@ This is a purely additive, backward-compatible layer:
 
 See [Tracing Plan v2](../../roadmap/tracing-plan.md) for the full design and
 [Hooked on Hooks — Lesson 9](../../hooked-on-hooks.md) for the practical takeaway.
+
+### What the finished UI is showing
+
+**Selected timeline window**
+
+![Selected Gantt period with related events isolated below](../assets/tutorial-screenshots/ui-features/ui-gantt-selected-period.png)
+
+Selecting a Gantt segment narrows the event list to the corresponding time
+window so you can inspect exactly which lifecycle records contributed to that
+bar.
+
+**Live activity board**
+
+![Live activity board with session and tool status rows](../assets/tutorial-screenshots/ui-features/ui-live-activity-board.png)
+
+The live board gives you a compact current-state summary without needing to
+scan the entire timeline.
+
+**Replay controls**
+
+![Replay controls with mode toggle, speed selector, and failure jump](../assets/tutorial-screenshots/ui-features/ui-replay-mode.png)
+
+Replay mode lets you scrub through persisted sessions, adjust playback speed,
+and jump directly to the first failure.
+
+**Event inspector**
+
+![Event inspector showing a traced `postToolUse` payload](../assets/tutorial-screenshots/ui-features/ui-event-inspector-tracing.png)
+
+When you click a timeline or event-list entry, the inspector exposes the raw
+payload so you can validate enrichment, synthesis, and tracing metadata.
+
+For a consolidated walkthrough of every captured UI surface, see the
+[UI Feature Showcase](../ui-feature-showcase.md).
 
 ### Try it yourself
 

@@ -78,6 +78,13 @@ What you should expect by part:
 - **Part 6:** full enhanced pipeline is in place end-to-end
 - **After Part 6:** the **Tool Pairing** bar in the UI shows how many `preToolUse`→`postToolUse` pairs resolved exactly vs. by heuristic — emit optional `turnId`/`traceId`/`spanId` fields to improve the score
 
+Visual reference for the finished interface:
+
+![Full UI overview after the completed tutorial flow](./assets/tutorial-screenshots/ui-features/ui-overview.png)
+
+If you want a focused tour of each panel, use the
+[UI Feature Showcase](./ui-feature-showcase.md).
+
 ## Next Steps
 
 - **Explore the codebase:**
