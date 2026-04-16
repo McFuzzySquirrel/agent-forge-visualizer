@@ -9,6 +9,12 @@ interface EventsResponse {
   events: Array<{ eventType: string; sessionId: string }>;
 }
 
+interface PairingDiagnosticsResponse {
+  totalPairs: number;
+  byMode: { toolCallId: number; spanId: number; heuristic: number };
+  unmatched: { preToolUse: number; postToolUse: number };
+}
+
 async function run(): Promise<void> {
   const server = await createIngestServer();
   const tempDir = await mkdtemp(join(tmpdir(), "visualizer-smoke-"));
@@ -31,8 +37,14 @@ async function run(): Promise<void> {
     };
 
     await emitEvent("sessionStart", {}, options);
-    await emitEvent("preToolUse", { toolName: "bash", toolArgs: { command: "echo smoke" } }, options);
-    await emitEvent("postToolUse", { toolName: "bash", status: "success", durationMs: 5 }, options);
+    await emitEvent("preToolUse", { toolName: "bash", toolArgs: { command: "echo smoke" }, toolCallId: "call-1" }, options);
+    await emitEvent("postToolUse", { toolName: "bash", status: "success", durationMs: 5, toolCallId: "call-1" }, options);
+    // Second pair using only span IDs (no toolCallId) to exercise spanId pairing
+    await emitEvent("preToolUse", { toolName: "edit" }, { ...options, spanId: "span-2" });
+    await emitEvent("postToolUse", { toolName: "edit", status: "success", durationMs: 3 }, { ...options, spanId: "span-2" });
+    // Third pair with no correlation IDs — exercises FIFO heuristic
+    await emitEvent("preToolUse", { toolName: "view" }, options);
+    await emitEvent("postToolUse", { toolName: "view", status: "success", durationMs: 1 }, options);
     await emitEvent("sessionEnd", {}, options);
 
     const eventsResponse = await fetch(`http://127.0.0.1:${port}/events`);
@@ -41,11 +53,11 @@ async function run(): Promise<void> {
     }
 
     const body = (await eventsResponse.json()) as EventsResponse;
-    if (body.count !== 4) {
-      throw new Error(`Expected 4 ingested events, received ${body.count}`);
+    if (body.count !== 8) {
+      throw new Error(`Expected 8 ingested events, received ${body.count}`);
     }
 
-    const expectedOrder = ["sessionStart", "preToolUse", "postToolUse", "sessionEnd"];
+    const expectedOrder = ["sessionStart", "preToolUse", "postToolUse", "preToolUse", "postToolUse", "preToolUse", "postToolUse", "sessionEnd"];
     const actualOrder = body.events.map((event) => event.eventType);
     if (expectedOrder.join(",") !== actualOrder.join(",")) {
       throw new Error(`Unexpected event order: ${actualOrder.join(" -> ")}`);
@@ -69,6 +81,29 @@ async function run(): Promise<void> {
     if (!streamText.includes(`\"sessionId\":\"${sessionId}\"`) || !streamText.includes("\"lifecycle\":\"completed\"")) {
       throw new Error(`Unexpected state stream payload: ${streamText}`);
     }
+
+    // --- Tracing v2: pairing diagnostics endpoint ---
+    const diagResponse = await fetch(`http://127.0.0.1:${port}/diagnostics/pairing`);
+    if (!diagResponse.ok) {
+      throw new Error(`GET /diagnostics/pairing failed with ${diagResponse.status}`);
+    }
+    const diag = (await diagResponse.json()) as PairingDiagnosticsResponse;
+    if (diag.totalPairs !== 3) {
+      throw new Error(`Expected 3 tool pairs, got ${diag.totalPairs}`);
+    }
+    if (diag.byMode.toolCallId !== 1) {
+      throw new Error(`Expected 1 toolCallId pair, got ${diag.byMode.toolCallId}`);
+    }
+    if (diag.byMode.spanId !== 1) {
+      throw new Error(`Expected 1 spanId pair, got ${diag.byMode.spanId}`);
+    }
+    if (diag.byMode.heuristic !== 1) {
+      throw new Error(`Expected 1 heuristic pair, got ${diag.byMode.heuristic}`);
+    }
+    if (diag.unmatched.preToolUse !== 0 || diag.unmatched.postToolUse !== 0) {
+      throw new Error(`Expected 0 unmatched, got pre=${diag.unmatched.preToolUse} post=${diag.unmatched.postToolUse}`);
+    }
+    console.log(`SMOKE_OK: pairing diagnostics — toolCallId:${diag.byMode.toolCallId} spanId:${diag.byMode.spanId} heuristic:${diag.byMode.heuristic}`);
 
     console.log("SMOKE_OK: emitter -> ingest -> state stream flow verified");
   } finally {
