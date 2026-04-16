@@ -282,6 +282,43 @@ rationale.
 
 ---
 
+## Vanilla vs. Enhanced: What the Visualizer Adds
+
+If you've read this far, you might be wondering: *what do the hooks look like
+before all these enhancements?*
+
+We provide a complete set of **vanilla hook examples** that show the raw,
+unmodified payloads Copilot CLI sends — no transformations, no enrichment,
+no dependencies:
+
+👉 **[Vanilla Hook Examples](examples/vanilla-hooks/README.md)** — 8 minimal
+scripts (`.sh` + `.ps1`) that log exactly what the CLI provides.
+
+Here's how the vanilla and enhanced versions compare:
+
+| Feature | Vanilla | Enhanced (Visualizer) |
+|---------|---------|----------------------|
+| Raw payload logging | ✅ | ✅ |
+| Event schema envelope | ❌ | ✅ |
+| Zod validation | ❌ | ✅ |
+| Stdin field extraction (25+ fields) | ❌ | ✅ |
+| Enriched payloads (agent, skill, task context) | ❌ | ✅ |
+| Event type synthesis (postToolUseFailure, subagentStart) | ❌ | ✅ |
+| Secret redaction | ❌ | ✅ |
+| HTTP forwarding to ingest service | ❌ | ✅ |
+| Deterministic state rebuild from JSONL | ❌ | ✅ |
+
+To understand exactly how we got from vanilla to enhanced, step by step, see
+the **[From Vanilla to Visualizer tutorial](tutorials/from-vanilla-to-visualizer.md)**.
+
+You can also generate vanilla hooks directly with the bootstrap command:
+
+```bash
+npm run bootstrap:repo -- /path/to/repo --create-hooks --vanilla
+```
+
+---
+
 ## Best Practices: The Hook Hygiene Checklist
 
 Here's what we wish we knew on Day 1:

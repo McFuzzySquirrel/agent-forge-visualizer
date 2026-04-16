@@ -97,6 +97,16 @@ npm run bootstrap:repo -- /path/to/target-repo --create-hooks --prefix viz
 
 This generates `viz-session-start.sh`, `viz-pre-tool-use.sh`, etc. instead of bare names. When wiring existing hooks, prefixed filenames like `viz-session-start.sh` are matched automatically.
 
+### Vanilla Mode
+
+Use `--vanilla` to generate minimal hooks that log raw Copilot CLI payloads with no transformations:
+
+```bash
+npm run bootstrap:repo -- /path/to/target-repo --create-hooks --vanilla
+```
+
+This creates simple scripts that read stdin and append the raw JSON to `.github/hooks/logs/events.jsonl` — no enrichment, no emit-event dependency, no fallback cascades. Use this to understand the default payloads before layering on customizations. See the [vanilla examples](docs/examples/vanilla-hooks/README.md) and [tutorial](docs/tutorials/from-vanilla-to-visualizer.md) for details.
+
 When bootstrapping, the tool also scans `.github/hooks/` for JSON hook manifests and updates any compatible manifest that contains a `hooks` object (for example `ejs-hooks.json` or other manifest names). Missing mapped lifecycle entries are added automatically based on discovered/generated hook scripts.
 
 ### Refresh Existing Generated Hooks
@@ -196,4 +206,6 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - Progress tracker: `docs/PROGRESS.md`
 - Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
 - Learning guide: `docs/hooked-on-hooks.md` — a practical guide to Copilot CLI hooks, patterns, and best practices
+- Vanilla hook examples: `docs/examples/vanilla-hooks/` — minimal hooks showing raw Copilot CLI payloads with no transformations
+- Tutorial: `docs/tutorials/from-vanilla-to-visualizer.md` — step-by-step guide from vanilla hooks to the full visualizer
 - Architecture decisions: `docs/adr/` — ADRs covering packaging, metadata, manifests, hook isolation, and UI polish
