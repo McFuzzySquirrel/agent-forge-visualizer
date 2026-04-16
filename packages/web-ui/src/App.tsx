@@ -228,10 +228,20 @@ export function App() {
 
   const handleSelectGanttSegment = useCallback((segment: GanttSegment) => {
     const endTime = segment.endTime ?? Date.now();
-    setSelectedPeriod({
-      startTime: segment.startTime,
-      endTime,
-      label: segment.label,
+    setSelectedPeriod((current) => {
+      if (
+        current &&
+        current.startTime === segment.startTime &&
+        current.endTime === endTime &&
+        current.label === segment.label
+      ) {
+        return null;
+      }
+      return {
+        startTime: segment.startTime,
+        endTime,
+        label: segment.label,
+      };
     });
   }, []);
 
