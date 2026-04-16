@@ -41,6 +41,15 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 };
 const DEFAULT_EVENT_COLOR = "#3b82f6";
 
+function formatRangeTime(ms: number): string {
+  return new Date(ms).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    fractionalSecondDigits: 3,
+  });
+}
+
 export function App() {
   const [sessionState, setSessionState] = useState<SessionState>(
     initialSessionState("unknown")
@@ -373,6 +382,10 @@ export function App() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.5rem" }}>
                 <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
                   Related to selected bar: {selectedPeriod.label}
+                  {" "}
+                  <span style={{ color: "#64748b" }}>
+                    ({formatRangeTime(selectedPeriod.startTime)} - {formatRangeTime(selectedPeriod.endTime)})
+                  </span>
                 </span>
                 <button
                   onClick={() => setSelectedPeriod(null)}

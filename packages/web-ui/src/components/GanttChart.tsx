@@ -247,9 +247,14 @@ export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect }: 
   const latestRunningId = useMemo(() => findLatestRunningSegmentId(rows), [rows]);
 
   // Tick `now` forward while there are running segments, session is active, and not idle
-  const hasRunning = !sessionCompleted && !isIdle && rows.some((r) =>
-    r.segments.some((s) => s.endTime === null)
-  );
+  const hasRunning =
+    !sessionCompleted &&
+    !isIdle &&
+    rows.some((r) =>
+      r.segments.some(
+        (s) => s.endTime === null && s.status === "running" && s.category !== "session"
+      )
+    );
 
   useEffect(() => {
     if (!hasRunning) return;
