@@ -2,6 +2,16 @@
 
 Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md) | Next: [Part 2](part-2.md)
 
+## Screenshot Placeholder
+
+![Placeholder screenshot for Part 1](../assets/tutorial-screenshots/from-vanilla-bash-part-1.png)
+
+**What this screenshot should show (Vanilla Hook Baseline):**
+- A terminal running a short Copilot CLI session with vanilla hooks enabled.
+- The latest lines of `.github/hooks/logs/events.jsonl` showing raw hook payloads.
+- At least one `preToolUse` or `postToolUse` raw payload visible without an envelope.
+
+
 ### What Copilot CLI gives you
 
 When Copilot CLI fires a hook, it pipes a JSON object on **stdin**. That's it.

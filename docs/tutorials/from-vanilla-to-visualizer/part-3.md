@@ -2,6 +2,16 @@
 
 Prev: [Part 2](part-2.md) | Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md) | Next: [Part 4](part-4.md)
 
+## Screenshot Placeholder
+
+![Placeholder screenshot for Part 3](../assets/tutorial-screenshots/from-vanilla-bash-part-3.png)
+
+**What this screenshot should show (Payload Enrichment Comparison):**
+- A side-by-side view of one vanilla JSONL line and one enriched JSONL line.
+- Enriched fields visible such as `agentName` and `taskDescription`.
+- An example where empty enrichment fields are omitted instead of stored as empty strings.
+
+
 ### Why vanilla payloads aren't enough
 
 Consider a `preToolUse` event. The vanilla payload is:

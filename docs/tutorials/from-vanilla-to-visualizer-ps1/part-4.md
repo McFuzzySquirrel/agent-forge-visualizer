@@ -2,6 +2,16 @@
 
 Prev: [Part 3](part-3.md) | Up: [From Vanilla to Visualizer (PowerShell)](../from-vanilla-to-visualizer-ps1.md) | Next: [Part 5](part-5.md)
 
+## Screenshot Placeholder
+
+![Placeholder screenshot for Part 4](../assets/tutorial-screenshots/from-vanilla-ps1-part-4.png)
+
+**What this screenshot should show (Synthesized Event Types):**
+- A filtered event list (or terminal output) showing both `postToolUse` and `postToolUseFailure` for the same session.
+- Optional: a `subagentStart`/`subagentStop` lifecycle view if available.
+- The event type column or JSON `eventType` field clearly readable.
+
+
 ### The problem: one hook, two outcomes
 
 Copilot CLI fires a **single** `postToolUse` hook for both success and failure.

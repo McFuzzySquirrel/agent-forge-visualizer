@@ -2,6 +2,16 @@
 
 Prev: [Part 1](part-1.md) | Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md) | Next: [Part 3](part-3.md)
 
+## Screenshot Placeholder
+
+![Placeholder screenshot for Part 2](../assets/tutorial-screenshots/from-vanilla-bash-part-2.png)
+
+**What this screenshot should show (Schema Envelope and Validation):**
+- A successful emitted event in `.visualizer/logs/events.jsonl` showing envelope fields (`schemaVersion`, `eventId`, `eventType`, `sessionId`).
+- A failed emit attempt (malformed payload) with a visible validation error message.
+- Evidence that malformed input was rejected (for example, no appended line for the failed emit).
+
+
 ### The problem with raw payloads
 
 Vanilla hooks log whatever the CLI sends. This works for simple logging, but

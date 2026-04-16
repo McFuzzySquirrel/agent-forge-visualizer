@@ -2,6 +2,16 @@
 
 Prev: [Part 5](part-5.md) | Up: [From Vanilla to Visualizer (PowerShell)](../from-vanilla-to-visualizer-ps1.md)
 
+## Screenshot Placeholder
+
+![Placeholder screenshot for Part 6](../assets/tutorial-screenshots/from-vanilla-ps1-part-6.png)
+
+**What this screenshot should show (Bootstrap Outcome and Diff):**
+- Generated hook artifacts for a bootstrapped repo (manifest + hook stubs) visible in a file tree or editor.
+- A quick comparison of vanilla vs enhanced outputs (scripts and/or event type distribution).
+- One highlighted customization candidate (for example, a derived event or extra payload field).
+
+
 ### The bootstrap command
 
 Rather than asking users to manually create all these scripts, the visualizer

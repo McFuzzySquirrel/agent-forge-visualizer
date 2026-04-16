@@ -6,6 +6,7 @@ This index helps you choose a tutorial track and jump directly to any part.
 
 - Bash/Linux track: [From Vanilla to Visualizer](./from-vanilla-to-visualizer.md)
 - PowerShell track: [From Vanilla to Visualizer (PowerShell)](./from-vanilla-to-visualizer-ps1.md)
+- Screenshot guide: [Tutorial Screenshot Assets](./assets/tutorial-screenshots/README.md)
 
 ## Bash/Linux Parts
 

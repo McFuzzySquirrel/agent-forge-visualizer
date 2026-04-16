@@ -2,6 +2,16 @@
 
 Prev: [Part 4](part-4.md) | Up: [From Vanilla to Visualizer](../from-vanilla-to-visualizer.md) | Next: [Part 6](part-6.md)
 
+## Screenshot Placeholder
+
+![Placeholder screenshot for Part 5](../assets/tutorial-screenshots/from-vanilla-bash-part-5.png)
+
+**What this screenshot should show (Emit Pattern and Recovery):**
+- An emit run with the HTTP endpoint unavailable (or intentionally invalid).
+- New lines still appended to `.visualizer/logs/events.jsonl` during the outage.
+- A replay command or replay result showing recovery after ingest becomes available.
+
+
 ### Architecture: emit and forget
 
 The vanilla approach writes directly to a log file. The visualizer separates
