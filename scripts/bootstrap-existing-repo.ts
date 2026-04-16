@@ -16,6 +16,8 @@ function usage(): string {
     "Options:",
     "  --prefix <name>    Prefix for hook filenames (e.g. --prefix viz creates viz-session-start.sh)",
     "  --create-hooks     Generate stub hook scripts in .github/hooks/ when none exist",
+    "  --vanilla          Generate minimal vanilla hooks that log raw stdin JSON",
+    "                     (no transformations, no emit-event dependency, no enrichment)",
     "",
     "What this creates in target repo:",
     "  .visualizer/emit-event.sh   (bash / macOS / Linux)",
@@ -24,7 +26,11 @@ function usage(): string {
     "  .visualizer/HOOK_INTEGRATION.md",
     "",
     "With --create-hooks, also creates stub scripts (.sh and .ps1) in",
-    ".github/hooks/ that call the visualizer emitter for each lifecycle event."
+    ".github/hooks/ that call the visualizer emitter for each lifecycle event.",
+    "",
+    "With --vanilla --create-hooks, creates minimal scripts that log the raw",
+    "Copilot CLI stdin JSON to .github/hooks/logs/events.jsonl with no",
+    "transformations or enrichment."
   ].join("\n");
 }
 
@@ -32,12 +38,14 @@ interface CliOptions {
   targetRepo: string;
   prefix?: string;
   createHooks: boolean;
+  vanilla: boolean;
 }
 
 function parseCliArgs(argv: string[]): CliOptions | null {
   const positional: string[] = [];
   let prefix: string | undefined;
   let createHooks = false;
+  let vanilla = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -50,6 +58,8 @@ function parseCliArgs(argv: string[]): CliOptions | null {
       i += 1;
     } else if (arg === "--create-hooks") {
       createHooks = true;
+    } else if (arg === "--vanilla") {
+      vanilla = true;
     } else if (arg === "-h" || arg === "--help") {
       console.log(usage());
       process.exit(0);
@@ -62,7 +72,7 @@ function parseCliArgs(argv: string[]): CliOptions | null {
     return null;
   }
 
-  return { targetRepo: positional[0], prefix, createHooks };
+  return { targetRepo: positional[0], prefix, createHooks, vanilla };
 }
 
 async function ensureExists(path: string): Promise<void> {
@@ -261,7 +271,7 @@ Start the ingest service later and replay from the JSONL file.
   console.log(`\nBootstrapped visualizer integration in: ${vizDir}`);
 
   // Auto-detect and wire hooks in .github/hooks/
-  await wireHooks(targetRepo, options.prefix, options.createHooks);
+  await wireHooks(targetRepo, options.prefix, options.createHooks, options.vanilla);
 }
 
 /**
@@ -876,6 +886,194 @@ exit 0
 `;
 }
 
+// ── Vanilla stub script generators ─────────────────────────────────────
+// These generate minimal hook scripts that log the raw Copilot CLI stdin
+// JSON to a JSONL file with no transformations, no env var extraction,
+// no enrichment, and no emit-event dependency.
+
+/** Per-hook jq extraction snippets for vanilla bash stubs. */
+const VANILLA_BASH_EXTRACTS: Record<string, string> = {
+  sessionStart: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `SOURCE=$(echo "$INPUT" | jq -r '.source // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `jq -n \\`,
+    `  --arg event "sessionStart" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg source "$SOURCE" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  '{event: $event, timestamp: $ts, source: $source, cwd: $cwd}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+  sessionEnd: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `REASON=$(echo "$INPUT" | jq -r '.reason // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `jq -n \\`,
+    `  --arg event "sessionEnd" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg reason "$REASON" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  '{event: $event, timestamp: $ts, reason: $reason, cwd: $cwd}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+  userPromptSubmitted: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `# Prompts may contain sensitive data. Consider redacting before persisting.`,
+    `jq -n \\`,
+    `  --arg event "userPromptSubmitted" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg prompt "$PROMPT" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  '{event: $event, timestamp: $ts, prompt: $prompt, cwd: $cwd}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+  preToolUse: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `TOOL_NAME=$(echo "$INPUT" | jq -r '.toolName // empty')`,
+    `TOOL_ARGS=$(echo "$INPUT" | jq -r '.toolArgs // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `jq -n \\`,
+    `  --arg event "preToolUse" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg tool "$TOOL_NAME" \\`,
+    `  --arg args "$TOOL_ARGS" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  '{event: $event, timestamp: $ts, toolName: $tool, toolArgs: $args, cwd: $cwd}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+  postToolUse: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `TOOL_NAME=$(echo "$INPUT" | jq -r '.toolName // empty')`,
+    `RESULT_TYPE=$(echo "$INPUT" | jq -r '.toolResult.resultType // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `jq -n \\`,
+    `  --arg event "postToolUse" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg tool "$TOOL_NAME" \\`,
+    `  --arg result "$RESULT_TYPE" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  '{event: $event, timestamp: $ts, toolName: $tool, resultType: $result, cwd: $cwd}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+  agentStop: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `# agentStop payload is not fully documented — log the complete raw input.`,
+    `jq -n \\`,
+    `  --arg event "agentStop" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  --argjson raw "$INPUT" \\`,
+    `  '{event: $event, timestamp: $ts, cwd: $cwd, rawPayload: $raw}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+  subagentStop: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `# subagentStop payload is not fully documented — log the complete raw input.`,
+    `jq -n \\`,
+    `  --arg event "subagentStop" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  --argjson raw "$INPUT" \\`,
+    `  '{event: $event, timestamp: $ts, cwd: $cwd, rawPayload: $raw}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+  errorOccurred: [
+    `TIMESTAMP=$(echo "$INPUT" | jq -r '.timestamp // empty')`,
+    `ERROR_MSG=$(echo "$INPUT" | jq -r '.error.message // empty')`,
+    `ERROR_NAME=$(echo "$INPUT" | jq -r '.error.name // empty')`,
+    `CWD=$(echo "$INPUT" | jq -r '.cwd // empty')`,
+    ``,
+    `jq -n \\`,
+    `  --arg event "errorOccurred" \\`,
+    `  --arg ts "$TIMESTAMP" \\`,
+    `  --arg msg "$ERROR_MSG" \\`,
+    `  --arg name "$ERROR_NAME" \\`,
+    `  --arg cwd "$CWD" \\`,
+    `  '{event: $event, timestamp: $ts, errorMessage: $msg, errorName: $name, cwd: $cwd}' \\`,
+    `  >> "$LOG_DIR/events.jsonl"`,
+  ].join("\n"),
+};
+
+/** Per-hook PowerShell extraction snippets for vanilla PS1 stubs. */
+const VANILLA_PS1_EXTRACTS: Record<string, { logFields: string }> = {
+  sessionStart:        { logFields: `    event     = "sessionStart"\n    timestamp = $inputObj.timestamp\n    source    = $inputObj.source\n    cwd       = $inputObj.cwd` },
+  sessionEnd:          { logFields: `    event     = "sessionEnd"\n    timestamp = $inputObj.timestamp\n    reason    = $inputObj.reason\n    cwd       = $inputObj.cwd` },
+  userPromptSubmitted: { logFields: `    event     = "userPromptSubmitted"\n    timestamp = $inputObj.timestamp\n    prompt    = $inputObj.prompt\n    cwd       = $inputObj.cwd` },
+  preToolUse:          { logFields: `    event     = "preToolUse"\n    timestamp = $inputObj.timestamp\n    toolName  = $inputObj.toolName\n    toolArgs  = $inputObj.toolArgs\n    cwd       = $inputObj.cwd` },
+  postToolUse:         { logFields: `    event      = "postToolUse"\n    timestamp  = $inputObj.timestamp\n    toolName   = $inputObj.toolName\n    resultType = $inputObj.toolResult.resultType\n    cwd        = $inputObj.cwd` },
+  agentStop:           { logFields: `    event      = "agentStop"\n    timestamp  = $inputObj.timestamp\n    cwd        = $inputObj.cwd\n    rawPayload = $inputObj` },
+  subagentStop:        { logFields: `    event      = "subagentStop"\n    timestamp  = $inputObj.timestamp\n    cwd        = $inputObj.cwd\n    rawPayload = $inputObj` },
+  errorOccurred:       { logFields: `    event        = "errorOccurred"\n    timestamp    = $inputObj.timestamp\n    errorMessage = $inputObj.error.message\n    errorName    = $inputObj.error.name\n    cwd          = $inputObj.cwd` },
+};
+
+export function buildVanillaStubScript(eventType: string): string {
+  const extract = VANILLA_BASH_EXTRACTS[eventType];
+  if (!extract) {
+    return `#!/usr/bin/env bash
+set -euo pipefail
+# Vanilla hook stub — logs raw stdin JSON.
+INPUT=$(cat)
+LOG_DIR=".github/hooks/logs"
+mkdir -p "$LOG_DIR"
+echo "$INPUT" >> "$LOG_DIR/events.jsonl"
+exit 0
+`;
+  }
+  return `#!/usr/bin/env bash
+set -euo pipefail
+# Vanilla ${eventType} hook — logs the raw Copilot CLI payload.
+# No transformations, no env var extraction, no fallback cascades.
+
+INPUT=$(cat)
+
+${extract}
+
+exit 0
+`;
+}
+
+export function buildVanillaStubScriptPs1(eventType: string): string {
+  const extract = VANILLA_PS1_EXTRACTS[eventType];
+  if (!extract) {
+    return `# Vanilla hook stub — logs raw stdin JSON.
+$ErrorActionPreference = "Stop"
+$inputObj = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$logDir = ".github/hooks/logs"
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+$inputObj | ConvertTo-Json -Compress | Add-Content -Path "$logDir/events.jsonl"
+exit 0
+`;
+  }
+  return `# Vanilla ${eventType} hook — logs the raw Copilot CLI payload.
+# No transformations, no env var extraction, no fallback cascades.
+$ErrorActionPreference = "Stop"
+
+$inputObj = [Console]::In.ReadToEnd() | ConvertFrom-Json
+
+$logDir = ".github/hooks/logs"
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+
+$logEntry = @{
+${extract.logFields}
+} | ConvertTo-Json -Compress
+
+Add-Content -Path "$logDir/events.jsonl" -Value $logEntry
+exit 0
+`;
+}
+
 async function createStubHooks(targetRepo: string, prefix?: string): Promise<number> {
   const hooksDir = join(targetRepo, ".github", "hooks", VISUALIZER_HOOKS_SUBDIR);
   await mkdir(hooksDir, { recursive: true });
@@ -914,6 +1112,50 @@ async function createStubHooks(targetRepo: string, prefix?: string): Promise<num
       const ps1Script = buildStubScriptPs1(mapping.eventType, ".visualizer/emit-event.ps1");
       await writeFile(ps1Path, ps1Script, "utf8");
       console.log(`  CREATE ${ps1Name} → ${mapping.eventType}`);
+      created += 1;
+    }
+  }
+
+  return created;
+}
+
+async function createVanillaStubHooks(targetRepo: string, prefix?: string): Promise<number> {
+  const hooksDir = join(targetRepo, ".github", "hooks", VISUALIZER_HOOKS_SUBDIR);
+  await mkdir(hooksDir, { recursive: true });
+
+  // Ensure the logs directory exists
+  const logsDir = join(targetRepo, ".github", "hooks", "logs");
+  await mkdir(logsDir, { recursive: true });
+
+  let created = 0;
+  for (const canonical of CANONICAL_HOOK_NAMES) {
+    const stubName = prefix ? `${prefix}-${canonical}` : canonical;
+    const mapping = HOOK_MAP[canonical];
+    if (!mapping) continue;
+
+    // Create vanilla bash stub (.sh)
+    const stubPath = join(hooksDir, stubName);
+    try {
+      await access(stubPath, constants.F_OK);
+      console.log(`  EXISTS ${stubName} — not overwriting`);
+    } catch {
+      const script = buildVanillaStubScript(mapping.eventType);
+      await writeFile(stubPath, script, "utf8");
+      await chmod(stubPath, 0o755);
+      console.log(`  CREATE ${stubName} → ${mapping.eventType} (vanilla)`);
+      created += 1;
+    }
+
+    // Create vanilla PowerShell stub (.ps1)
+    const ps1Name = stubName.replace(/\.sh$/, ".ps1");
+    const ps1Path = join(hooksDir, ps1Name);
+    try {
+      await access(ps1Path, constants.F_OK);
+      console.log(`  EXISTS ${ps1Name} — not overwriting`);
+    } catch {
+      const ps1Script = buildVanillaStubScriptPs1(mapping.eventType);
+      await writeFile(ps1Path, ps1Script, "utf8");
+      console.log(`  CREATE ${ps1Name} → ${mapping.eventType} (vanilla)`);
       created += 1;
     }
   }
@@ -1041,8 +1283,10 @@ async function createVisualizerManifest(
   console.log(`\nCREATE .github/hooks/${VISUALIZER_HOOKS_SUBDIR}/${VISUALIZER_MANIFEST_NAME} — ${allEvents.length} event types`);
 }
 
-async function wireHooks(targetRepo: string, prefix?: string, createHooks?: boolean): Promise<void> {
+async function wireHooks(targetRepo: string, prefix?: string, createHooks?: boolean, vanilla?: boolean): Promise<void> {
   const hooksDir = join(targetRepo, ".github", "hooks");
+  const createFn = vanilla ? createVanillaStubHooks : createStubHooks;
+  const modeLabel = vanilla ? " (vanilla)" : "";
 
   let hooksDirExists = true;
   try {
@@ -1054,8 +1298,8 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
   // If no hooks directory and --create-hooks was requested, create stubs
   if (!hooksDirExists) {
     if (createHooks) {
-      console.log(`\nNo .github/hooks/ directory found — creating stub hooks:`);
-      const created = await createStubHooks(targetRepo, prefix);
+      console.log(`\nNo .github/hooks/ directory found — creating stub hooks${modeLabel}:`);
+      const created = await createFn(targetRepo, prefix);
       const finalFiles = await findHookScripts(hooksDir);
       const finalCoveredEvents = new Set<string>();
       for (const { relPath } of finalFiles) {
@@ -1063,7 +1307,7 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
         if (match) finalCoveredEvents.add(match.eventType);
       }
       await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
-      console.log(`\nCreated ${created} stub hook scripts in ${hooksDir}`);
+      console.log(`\nCreated ${created} stub hook scripts${modeLabel} in ${hooksDir}`);
       return;
     }
     console.log("\nNo .github/hooks/ directory found — skipping hook wiring.");
@@ -1077,8 +1321,8 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
 
   if (hookFiles.length === 0) {
     if (createHooks) {
-      console.log(`\nNo hook scripts found in .github/hooks/ — creating stub hooks:`);
-      const created = await createStubHooks(targetRepo, prefix);
+      console.log(`\nNo hook scripts found in .github/hooks/ — creating stub hooks${modeLabel}:`);
+      const created = await createFn(targetRepo, prefix);
       const finalFiles = await findHookScripts(hooksDir);
       const finalCoveredEvents = new Set<string>();
       for (const { relPath } of finalFiles) {
@@ -1086,11 +1330,70 @@ async function wireHooks(targetRepo: string, prefix?: string, createHooks?: bool
         if (match) finalCoveredEvents.add(match.eventType);
       }
       await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
-      console.log(`\nCreated ${created} stub hook scripts in ${hooksDir}`);
+      console.log(`\nCreated ${created} stub hook scripts${modeLabel} in ${hooksDir}`);
       return;
     }
     console.log("\nNo hook scripts found in .github/hooks/ — skipping hook wiring.");
     console.log("Tip: re-run with --create-hooks to generate stub hooks automatically.");
+    return;
+  }
+
+  // In vanilla mode, skip auto-wiring existing hooks — only create stubs
+  if (vanilla) {
+    console.log(`\nVanilla mode — skipping auto-wiring of existing hook scripts.`);
+    if (createHooks) {
+      const coveredEvents = new Set<string>();
+      for (const { relPath } of hookFiles) {
+        const m = matchHookFilename(relPath, prefix);
+        if (m) coveredEvents.add(m.eventType);
+      }
+      const missingCanonical = CANONICAL_HOOK_NAMES.filter(
+        (name) => !coveredEvents.has(HOOK_MAP[name].eventType)
+      );
+      if (missingCanonical.length > 0) {
+        const vizHooksDir = join(hooksDir, VISUALIZER_HOOKS_SUBDIR);
+        await mkdir(vizHooksDir, { recursive: true });
+        const logsDir = join(targetRepo, ".github", "hooks", "logs");
+        await mkdir(logsDir, { recursive: true });
+        console.log(`\nCreating vanilla stub hooks for uncovered event types:`);
+        let created = 0;
+        for (const canonical of missingCanonical) {
+          const mapping = HOOK_MAP[canonical];
+          const stubName = prefix ? `${prefix}-${canonical}` : canonical;
+          const stubPath = join(vizHooksDir, stubName);
+          try {
+            await access(stubPath, constants.F_OK);
+            console.log(`  EXISTS ${VISUALIZER_HOOKS_SUBDIR}/${stubName} — not overwriting`);
+          } catch {
+            const script = buildVanillaStubScript(mapping.eventType);
+            await writeFile(stubPath, script, "utf8");
+            await chmod(stubPath, 0o755);
+            console.log(`  CREATE ${VISUALIZER_HOOKS_SUBDIR}/${stubName} → ${mapping.eventType} (vanilla)`);
+            created += 1;
+          }
+          const ps1Name = stubName.replace(/\.sh$/, ".ps1");
+          const ps1Path = join(vizHooksDir, ps1Name);
+          try {
+            await access(ps1Path, constants.F_OK);
+            console.log(`  EXISTS ${VISUALIZER_HOOKS_SUBDIR}/${ps1Name} — not overwriting`);
+          } catch {
+            const ps1Script = buildVanillaStubScriptPs1(mapping.eventType);
+            await writeFile(ps1Path, ps1Script, "utf8");
+            console.log(`  CREATE ${VISUALIZER_HOOKS_SUBDIR}/${ps1Name} → ${mapping.eventType} (vanilla)`);
+            created += 1;
+          }
+        }
+        console.log(`\nCreated ${created} vanilla stub hook scripts.`);
+      }
+    }
+
+    const finalFiles = await findHookScripts(hooksDir);
+    const finalCoveredEvents = new Set<string>();
+    for (const { relPath } of finalFiles) {
+      const match = matchHookFilename(relPath, prefix);
+      if (match) finalCoveredEvents.add(match.eventType);
+    }
+    await syncHookManifests(targetRepo, finalCoveredEvents, prefix);
     return;
   }
 
