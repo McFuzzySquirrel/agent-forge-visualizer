@@ -1038,6 +1038,9 @@ set -euo pipefail
 
 INPUT=$(cat)
 
+LOG_DIR=".github/hooks/logs"
+mkdir -p "$LOG_DIR"
+
 ${extract}
 
 exit 0

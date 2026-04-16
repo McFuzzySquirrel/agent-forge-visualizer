@@ -374,6 +374,8 @@ describe("buildVanillaStubScript", () => {
     for (const eventType of ALL_EVENT_TYPES) {
       const script = buildVanillaStubScript(eventType);
       expect(script).toContain("events.jsonl");
+      expect(script).toContain('LOG_DIR=');
+      expect(script).toContain('mkdir -p "$LOG_DIR"');
     }
   });
 
