@@ -6,6 +6,9 @@
 
 Visualize Copilot agent runtime activity in real time and replay sessions from persisted JSONL logs.
 
+> **🎓 This project is also an interactive, hands-on learning experience.**
+> Beyond the visualizer itself, the repo includes a full [tutorial](docs/tutorials/from-vanilla-to-visualizer.md) and [vanilla hook examples](docs/examples/vanilla-hooks/) that walk you through Copilot CLI hooks from the ground up — starting with raw payloads and progressively adding schema validation, payload enrichment, event synthesis, and the emit pipeline. Whether you're building your own hook integrations or just want to understand what hooks can do, this is the place to start.
+
 The project is complete for the planned MVP scope:
 - Foundation Event Capture
 - Deterministic State Engine
@@ -205,7 +208,12 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - Product vision: `docs/product-vision.md`
 - Progress tracker: `docs/PROGRESS.md`
 - Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
-- Learning guide: `docs/hooked-on-hooks.md` — a practical guide to Copilot CLI hooks, patterns, and best practices
-- Vanilla hook examples: `docs/examples/vanilla-hooks/` — minimal hooks showing raw Copilot CLI payloads with no transformations
-- Tutorial: `docs/tutorials/from-vanilla-to-visualizer.md` — step-by-step guide from vanilla hooks to the full visualizer
 - Architecture decisions: `docs/adr/` — ADRs covering packaging, metadata, manifests, hook isolation, and UI polish
+
+### 🎓 Learning & Tutorials
+
+This project is designed as an interactive, hands-on learning experience for understanding what Copilot CLI hooks can do:
+
+- **[From Vanilla to Visualizer Tutorial](docs/tutorials/from-vanilla-to-visualizer.md)** — A six-part walkthrough that starts with the raw payloads Copilot CLI sends and progressively builds up to the full visualizer pipeline. Covers schema validation, payload enrichment, event synthesis, the emit pattern, and bootstrap automation. Each step includes before/after comparisons so you can see exactly what changes and why.
+- **[Vanilla Hook Examples](docs/examples/vanilla-hooks/)** — Minimal, standalone hook scripts (`.sh` + `.ps1` for all 8 hook types) that log raw Copilot CLI payloads with no transformations. Copy these into any repo to see exactly what data hooks provide out of the box.
+- **[Hooked on Hooks](docs/hooked-on-hooks.md)** — A practical guide to Copilot CLI hooks covering patterns, best practices, and lessons learned from building this visualizer.
