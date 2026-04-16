@@ -69,4 +69,41 @@ describe("hook emitter", () => {
 
     await rm(dir, { recursive: true, force: true });
   });
+
+  it("persists optional tracing metadata when provided", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "emitter-"));
+    const jsonlPath = join(dir, "events.jsonl");
+
+    const result = await emitEvent(
+      "preToolUse",
+      { toolName: "bash", toolCallId: "call-123", toolArgs: { command: "pwd" } },
+      {
+        jsonlPath,
+        repoPath: "/tmp/repo",
+        sessionId: "session-1",
+        turnId: "turn-1",
+        traceId: "trace-1",
+        spanId: "span-1",
+        parentSpanId: "span-0"
+      }
+    );
+
+    expect(result.accepted).toBe(true);
+    const lines = (await readFile(jsonlPath, "utf8")).trim().split("\n");
+    const record = JSON.parse(lines[0]) as {
+      turnId?: string;
+      traceId?: string;
+      spanId?: string;
+      parentSpanId?: string;
+      payload: { toolCallId?: string };
+    };
+
+    expect(record.turnId).toBe("turn-1");
+    expect(record.traceId).toBe("trace-1");
+    expect(record.spanId).toBe("span-1");
+    expect(record.parentSpanId).toBe("span-0");
+    expect(record.payload.toolCallId).toBe("call-123");
+
+    await rm(dir, { recursive: true, force: true });
+  });
 });

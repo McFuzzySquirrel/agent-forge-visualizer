@@ -90,4 +90,20 @@ describe("event schema", () => {
     expect(start.ok).toBe(true);
     expect(stop.ok).toBe(true);
   });
+
+  it("accepts optional tracing metadata on envelope and tool payloads", () => {
+    const result = parseEvent({
+      ...baseEnvelope("preToolUse"),
+      turnId: "turn-1",
+      traceId: "trace-1",
+      spanId: "span-1",
+      parentSpanId: "span-0",
+      payload: {
+        toolName: "bash",
+        toolCallId: "call-1",
+        toolArgs: { command: "echo hi" }
+      }
+    });
+    expect(result.ok).toBe(true);
+  });
 });

@@ -91,11 +91,27 @@ describe("replay chronology and controls", () => {
   });
 
   it("creates inspector entries from replay events", () => {
-    const frames = buildReplayFrames(loadFixture("replay-failure-path.jsonl"));
+    const events = loadFixture("replay-failure-path.jsonl");
+    const augmented: EventEnvelope[] = events.map((event, index) =>
+      index === 1
+        ? {
+            ...event,
+            turnId: "turn-1",
+            traceId: "trace-1",
+            spanId: "span-1",
+            parentSpanId: "span-root",
+          }
+        : event
+    );
+    const frames = buildReplayFrames(augmented);
     const entry = toInspectorEntry(getReplayEventAt(frames, 1));
 
     expect(entry?.eventType).toBe("preToolUse");
     expect(entry?.payload).toHaveProperty("toolName", "grep");
+    expect(entry?.turnId).toBe("turn-1");
+    expect(entry?.traceId).toBe("trace-1");
+    expect(entry?.spanId).toBe("span-1");
+    expect(entry?.parentSpanId).toBe("span-root");
   });
 
   it("steps playback forward and clamps at the last frame", () => {

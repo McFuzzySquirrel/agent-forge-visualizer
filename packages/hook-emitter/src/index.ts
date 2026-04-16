@@ -9,6 +9,10 @@ export interface EmitOptions {
   jsonlPath: string;
   repoPath: string;
   sessionId: string;
+  turnId?: string;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
   source?: "copilot-cli";
   httpEndpoint?: string;
   now?: () => string;
@@ -56,6 +60,10 @@ export async function emitEvent(
     sessionId: options.sessionId,
     source: options.source ?? "copilot-cli",
     repoPath: options.repoPath,
+    turnId: options.turnId,
+    traceId: options.traceId,
+    spanId: options.spanId,
+    parentSpanId: options.parentSpanId,
     payload
   };
 

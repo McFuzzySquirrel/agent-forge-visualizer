@@ -161,6 +161,10 @@ export function App() {
       eventType: event.eventType,
       timestamp: event.timestamp,
       sessionId: event.sessionId,
+      turnId: event.turnId,
+      traceId: event.traceId,
+      spanId: event.spanId,
+      parentSpanId: event.parentSpanId,
       payload: event.payload as Record<string, unknown>
     });
 
