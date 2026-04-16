@@ -233,9 +233,11 @@ interface Props {
   sessionCompleted?: boolean;
   /** When true, the visualization state is idle — pause animations for running bars. */
   isIdle?: boolean;
+  /** Optional callback when a segment bar is selected. */
+  onSegmentSelect?: (segment: GanttSegment, row: GanttRow) => void;
 }
 
-export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
+export function GanttChart({ rows, sessionCompleted, isIdle, onSegmentSelect }: Props) {
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [now, setNow] = useState(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -406,6 +408,14 @@ export function GanttChart({ rows, sessionCompleted, isIdle }: Props) {
                     key={seg.id}
                     onMouseMove={(e) => handleMouseMove(seg, e)}
                     onMouseLeave={handleMouseLeave}
+                    onClick={() => onSegmentSelect?.(seg, row)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSegmentSelect?.(seg, row);
+                      }
+                    }}
+                    tabIndex={0}
                     style={{
                       position: "absolute",
                       left: `${startPct}%`,

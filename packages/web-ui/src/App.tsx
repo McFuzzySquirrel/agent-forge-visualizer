@@ -14,6 +14,7 @@ import {
   toInspectorEntry
 } from "./replay.js";
 import { buildGanttData } from "./ganttData.js";
+import type { GanttSegment } from "./ganttData.js";
 import { LiveBoard } from "./components/LiveBoard.js";
 import { GanttChart } from "./components/GanttChart.js";
 import { EventInspector } from "./components/EventInspector.js";
@@ -59,6 +60,11 @@ export function App() {
     return parsed === 0.5 || parsed === 1 || parsed === 2 || parsed === 4 ? parsed : 1;
   });
   const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<{
+    startTime: number;
+    endTime: number;
+    label: string;
+  } | null>(null);
   const eventListRef = useRef<HTMLUListElement>(null);
   const userScrolledRef = useRef(false);
 
@@ -144,6 +150,15 @@ export function App() {
   const timelineSource = replayMode ? replayEvents : allEvents;
   const filteredEvents = applyFilter(timelineSource, filter);
   const ganttRows = useMemo(() => buildGanttData(filteredEvents), [filteredEvents]);
+  const periodEvents = useMemo(() => {
+    if (!selectedPeriod) {
+      return filteredEvents;
+    }
+    return timelineSource.filter((ev) => {
+      const t = Date.parse(ev.timestamp);
+      return Number.isFinite(t) && t >= selectedPeriod.startTime && t <= selectedPeriod.endTime;
+    });
+  }, [filteredEvents, selectedPeriod, timelineSource]);
   const sessionCompleted = displayedState.lifecycle === "completed";
   const isIdle = displayedState.visualization === "idle" && !sessionCompleted;
 
@@ -151,10 +166,10 @@ export function App() {
   useEffect(() => {
     if (replayMode || userScrolledRef.current) return;
     const ul = eventListRef.current;
-    if (ul && ul.lastElementChild) {
-      ul.lastElementChild.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (ul) {
+      ul.scrollTop = ul.scrollHeight;
     }
-  }, [filteredEvents.length, replayMode]);
+  }, [periodEvents.length, replayMode]);
 
   const handleSelectEvent = useCallback((event: EventEnvelope) => {
     setSelected({
@@ -201,6 +216,15 @@ export function App() {
       setIsPlaying(false);
     }
   }, [firstFailureIndex]);
+
+  const handleSelectGanttSegment = useCallback((segment: GanttSegment) => {
+    const endTime = segment.endTime ?? Date.now();
+    setSelectedPeriod({
+      startTime: segment.startTime,
+      endTime,
+      label: segment.label,
+    });
+  }, []);
 
   return (
     <main style={{ maxWidth: 1440, margin: "0 auto", padding: "1.5rem 2rem" }}>
@@ -269,7 +293,12 @@ export function App() {
         <h2 style={{ fontSize: "1rem", marginBottom: "0.75rem", color: "#94a3b8", fontWeight: 500 }}>
           Timeline
         </h2>
-        <GanttChart rows={ganttRows} sessionCompleted={sessionCompleted} isIdle={isIdle} />
+        <GanttChart
+          rows={ganttRows}
+          sessionCompleted={sessionCompleted}
+          isIdle={isIdle}
+          onSegmentSelect={handleSelectGanttSegment}
+        />
       </div>
 
       <div style={{ display: "flex", gap: "1.5rem" }}>
@@ -338,8 +367,29 @@ export function App() {
             }}
           >
             <h2 style={{ fontSize: "1rem", marginBottom: "0.5rem" }}>
-              Events ({filteredEvents.length})
+              Events ({periodEvents.length})
             </h2>
+            {selectedPeriod && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.5rem" }}>
+                <span style={{ fontSize: "0.8rem", color: "#94a3b8" }}>
+                  Related to selected bar: {selectedPeriod.label}
+                </span>
+                <button
+                  onClick={() => setSelectedPeriod(null)}
+                  style={{
+                    background: "#334155",
+                    color: "#e2e8f0",
+                    border: "1px solid #475569",
+                    borderRadius: 6,
+                    padding: "0.15rem 0.45rem",
+                    fontSize: "0.75rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
             <ul
               ref={eventListRef}
               onScroll={(e) => {
@@ -350,7 +400,7 @@ export function App() {
               }}
               style={{ listStyle: "none", padding: 0, margin: 0, maxHeight: 400, overflowY: "auto" }}
             >
-              {filteredEvents.map((ev) => (
+              {periodEvents.map((ev) => (
                 <li key={ev.eventId}>
                   <button
                     onClick={() => handleSelectEvent(ev)}
