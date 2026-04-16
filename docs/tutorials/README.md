@@ -9,6 +9,12 @@ This index helps you choose a tutorial track and jump directly to any part.
 - UI walkthrough: [UI Feature Showcase](./ui-feature-showcase.md)
 - Screenshot guide: [Tutorial Screenshot Assets](./assets/tutorial-screenshots/README.md)
 
+## Relevant ADRs
+
+- [ADR-006: Task postToolUse subagent synthesis](../adr/006-task-posttooluse-subagent-synthesis.md)
+- [ADR-007: README quickstart and documentation depth split](../adr/007-readme-quickstart-and-doc-depth-split.md)
+- [ADR-008: Tracing, UX, and documentation consolidation](../adr/008-tracing-ux-and-doc-consolidation.md)
+
 ## Bash/Linux Parts
 
 - [Part 1: Starting from Vanilla](./from-vanilla-to-visualizer/part-1.md)

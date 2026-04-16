@@ -22,7 +22,7 @@ All five planned features are complete and validated locally. Integration toolin
 - Bootstrap: `emit-event.sh` and `emit-event.ps1` templates forward `VISUALIZER_TURN_ID`, `VISUALIZER_TRACE_ID`, `VISUALIZER_SPAN_ID`, `VISUALIZER_PARENT_SPAN_ID` env vars to `emit-event-cli.ts`.
 - `scripts/emit-event-cli.ts`: accepts `--turnId`, `--traceId`, `--spanId`, `--parentSpanId` args.
 - Smoke test extended to exercise all three pairing modes (toolCallId, spanId, FIFO heuristic).
-- Documentation rollout: `hooked-on-hooks.md` Lesson 9, `deterministic-state-engine.md` Phase 3, ADR-006 cross-links, tutorial parts 2/5/6, tracing plan v2 document.
+- Documentation rollout: `hooked-on-hooks.md` Lesson 9, `deterministic-state-engine.md` Phase 3, ADR-006 cross-links, tutorial parts 2/5/6, tracing plan v2 document, plus ADR-007/ADR-008 for documentation and umbrella rollout rationale.
 
 ### Files Added/Updated
 
@@ -108,6 +108,12 @@ All five planned features are complete and validated locally. Integration toolin
 - docs/adr/005-idle-aware-gantt-and-ui-polish.md
 
 ## Integration Tooling (Post-MVP)
+
+## Decision Records (Recent)
+
+- ADR-006: `docs/adr/006-task-posttooluse-subagent-synthesis.md`
+- ADR-007: `docs/adr/007-readme-quickstart-and-doc-depth-split.md`
+- ADR-008: `docs/adr/008-tracing-ux-and-doc-consolidation.md`
 
 ### Implemented Deliverables
 

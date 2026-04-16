@@ -246,3 +246,6 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - UI showcase: `docs/tutorials/ui-feature-showcase.md`
 - Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
 - Architecture decisions: `docs/adr/` — ADRs covering packaging, metadata, manifests, hook isolation, and UI polish
+- ADR-006: `docs/adr/006-task-posttooluse-subagent-synthesis.md` — synthesis timing and lane lifecycle rationale
+- ADR-007: `docs/adr/007-readme-quickstart-and-doc-depth-split.md` — README/runbook vs deep-doc split
+- ADR-008: `docs/adr/008-tracing-ux-and-doc-consolidation.md` — umbrella decision for tracing + UX + docs rollout

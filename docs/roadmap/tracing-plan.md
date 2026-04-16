@@ -86,6 +86,12 @@ Update tracing guidance consistently across:
 2. Dependence on unreleased CLI echo-back span semantics.
 3. Replacing deterministic ingest synthesis with DB-only lifecycle logic.
 
+### Related ADRs
+
+- [ADR-006: Task postToolUse subagent synthesis](../adr/006-task-posttooluse-subagent-synthesis.md)
+- [ADR-007: README quickstart and documentation depth split](../adr/007-readme-quickstart-and-doc-depth-split.md)
+- [ADR-008: Tracing, UX, and documentation consolidation](../adr/008-tracing-ux-and-doc-consolidation.md)
+
 ### File touch list (implementation)
 
 **Now**

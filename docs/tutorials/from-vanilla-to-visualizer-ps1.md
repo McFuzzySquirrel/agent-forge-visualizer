@@ -97,6 +97,8 @@ If you want a focused tour of each panel, use the
   - [ADR-003: Manifest-first hook registration](../adr/003-manifest-first-hook-registration.md)
   - [ADR-004: Visualiser hooks subdirectory](../adr/004-visualizer-hooks-subdirectory.md)
   - [ADR-006: Task postToolUse subagent synthesis](../adr/006-task-posttooluse-subagent-synthesis.md)
+  - [ADR-007: README quickstart and documentation depth split](../adr/007-readme-quickstart-and-doc-depth-split.md)
+  - [ADR-008: Tracing, UX, and documentation consolidation](../adr/008-tracing-ux-and-doc-consolidation.md)
 
 - **Read the practitioner guide:** [Hooked on Hooks](../hooked-on-hooks.md) —
   lessons learned, best practices, and patterns from building the visualiser.
