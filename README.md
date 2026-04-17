@@ -249,3 +249,4 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - ADR-006: `docs/adr/006-task-posttooluse-subagent-synthesis.md` — synthesis timing and lane lifecycle rationale
 - ADR-007: `docs/adr/007-readme-quickstart-and-doc-depth-split.md` — README/runbook vs deep-doc split
 - ADR-008: `docs/adr/008-tracing-ux-and-doc-consolidation.md` — umbrella decision for tracing + UX + docs rollout
+- ADR-009: `docs/adr/009-tutorial-alignment-and-pretooluse-examples.md` — tutorial code snippet accuracy and preToolUse standardisation

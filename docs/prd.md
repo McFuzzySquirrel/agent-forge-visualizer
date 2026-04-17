@@ -17,6 +17,7 @@
 | 1.1 | 2026-04-12 | GitHub Copilot | Finalized MVP decisions: include Windows support, prompt storage opt-in only, lock ingest service on Fastify |
 | 1.2 | 2026-04-14 | GitHub Copilot | Post-MVP alignment: updated TypeScript version to match installed 5.x, replaced pixel-art UI references with accurate descriptions, marked all implementation phases complete, added bootstrap/unbootstrap tooling |
 | 1.3 | 2026-04-17 | GitHub Copilot | Tracing v2 (Phase A/B): event-stream correlation fields, pairing diagnostics endpoint, UI inspector metadata, PairingDiagnosticsPanel, bootstrap tracing env var forwarding, smoke test extended, documentation rollout |
+| 1.4 | 2026-04-17 | GitHub Copilot | Tutorial alignment: aligned Bash and PS1 tutorial code snippets with actual vanilla examples and bootstrap output, standardised on preToolUse as canonical example, brought PS1 tutorial depth to parity with Bash track |
 
 ---
 
@@ -368,6 +369,17 @@ Compliance position (MVP): no explicit regulated domain target is declared yet; 
 - [x] Forward `VISUALIZER_TURN_ID`/`TRACE_ID`/`SPAN_ID`/`PARENT_SPAN_ID` from generated emitter scripts.
 - [x] Extend smoke test to verify all three pairing modes end-to-end.
 - [x] Documentation rollout across hooked-on-hooks, tutorials, state-engine feature doc, ADR-006.
+
+### Phase 8: Tutorial Alignment and preToolUse Standardisation (Post-MVP)
+- [x] Align Bash Part 1 and Part 6 vanilla code snippets with `docs/examples/vanilla-hooks/pre-tool-use.sh`.
+- [x] Rewrite PS1 Parts 1–6 to match Bash tutorial structure and depth.
+- [x] Replace incorrect `Get-VizValue`/`-AsHashtable` pattern with actual `_vizField`/`_vizNested` helpers.
+- [x] Standardise on `preToolUse` as the canonical worked example across both tracks.
+- [x] Add step-by-step "Try it yourself" blocks with expected output to all PS1 parts.
+- [x] Add optional visualiser checkpoints at each part boundary.
+- [x] Add Tracing v2 coverage to PS1 Parts 2 and 5.
+- [x] Add Next Steps links and ADR cross-references to PS1 Part 6.
+- [x] Record ADR-009 for tutorial alignment decision.
 
 ---
 
