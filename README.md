@@ -1,6 +1,6 @@
 # Copilot Activity Visualiser
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/McFuzzySquirrel/agent-forge-visualizer/ci.yml?style=flat-square)](https://github.com/McFuzzySquirrel/agent-forge-visualizer/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/McFuzzySquirrel/hooked-on-hooks/ci.yml?style=flat-square)](https://github.com/McFuzzySquirrel/hooked-on-hooks/actions)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24-3c873a?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
