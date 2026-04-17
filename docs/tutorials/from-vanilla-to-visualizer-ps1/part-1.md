@@ -58,10 +58,10 @@ This creates the hook scripts and wires them up automatically.
    git init
    ```
 
-2. Bootstrap vanilla hooks into it from the `agent-forge-visualizer` repo.
+2. Bootstrap vanilla hooks into it from the `hooked-on-hooks` repo.
 
    ```powershell
-   # Run this from inside the agent-forge-visualizer repo
+    # Run this from inside the hooked-on-hooks repo
    npx tsx scripts/bootstrap-existing-repo.ts "$env:TEMP\copilot-hooks-lab" --vanilla --create-hooks
    ```
 

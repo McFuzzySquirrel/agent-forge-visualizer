@@ -137,7 +137,7 @@
 Proposed structure:
 
 ```text
-agent-forge-visualizer/
+hooked-on-hooks/
   docs/
     prd.md
     product-vision.md

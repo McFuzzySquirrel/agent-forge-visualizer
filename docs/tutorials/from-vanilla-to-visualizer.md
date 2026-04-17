@@ -52,7 +52,7 @@ You can run the visualizer UI after each part to see how your changes affect
 live rendering. This is optional; the tutorial itself can be completed with
 CLI + JSONL checks only.
 
-1. In the `agent-forge-visualizer` repo, start ingest:
+1. In the `hooked-on-hooks` repo, start ingest:
 
   ```bash
   npm run serve:ingest
