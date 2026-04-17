@@ -2,15 +2,6 @@
 
 Up: [From Vanilla to Visualizer (PowerShell)](../from-vanilla-to-visualizer-ps1.md) | Next: [Part 2](part-2.md)
 
-## Screenshot Placeholder
-
-![Placeholder screenshot for Part 1](../assets/tutorial-screenshots/from-vanilla-ps1-part-1.png)
-
-**What this screenshot should show (Vanilla Hook Baseline):**
-- A terminal running a short Copilot CLI session with vanilla hooks enabled.
-- The latest lines of `.github/hooks/logs/events.jsonl` showing raw hook payloads.
-- At least one `preToolUse` or `postToolUse` raw payload visible without an envelope.
-
 
 ### What Copilot CLI gives you
 
@@ -20,15 +11,102 @@ No headers, no env vars, no framing — just raw JSON.
 Here's what a vanilla `preToolUse` hook looks like in PowerShell:
 
 ```powershell
-$inputJson = [Console]::In.ReadToEnd()
-$obj = $inputJson | ConvertFrom-Json
-$toolName = $obj.toolName
-$toolArgs = $obj.toolArgs
-Add-Content -Path ".github/hooks/logs/events.jsonl" -Value $inputJson
+# Vanilla pre-tool-use hook — logs the raw Copilot CLI payload.
+# No transformations, no env var extraction, no fallback cascades.
+$ErrorActionPreference = "Stop"
+
+$inputObj = [Console]::In.ReadToEnd() | ConvertFrom-Json
+
+# Fields the Copilot CLI sends for preToolUse:
+#   timestamp  — Unix timestamp in milliseconds
+#   cwd        — Current working directory
+#   toolName   — Name of the tool (e.g. "bash", "edit", "view", "create")
+#   toolArgs   — JSON string containing the tool's arguments
+
+$logDir = ".github/hooks/logs"
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+
+$logEntry = @{
+    event     = "preToolUse"
+    timestamp = $inputObj.timestamp
+    toolName  = $inputObj.toolName
+    toolArgs  = $inputObj.toolArgs
+    cwd       = $inputObj.cwd
+} | ConvertTo-Json -Compress
+
+Add-Content -Path "$logDir/events.jsonl" -Value $logEntry
+
+# To deny a tool execution, output JSON with permissionDecision:
+# Write-Output '{"permissionDecision":"deny","permissionDecisionReason":"Blocked by policy"}'
+
+exit 0
 ```
 
-Four lines. Read stdin, extract what you need, log it. This is the baseline
-that every Copilot CLI hook starts from.
+Read stdin, extract the fields, build a structured JSON log entry, and append.
+This is the baseline that every Copilot CLI hook starts from.
+
+## Try it yourself
+
+Rather than copying files manually, use the bootstrap script with the `--vanilla` flag.
+This creates the hook scripts and wires them up automatically.
+
+1. Create a throwaway test repo.
+
+   ```powershell
+   New-Item -ItemType Directory -Path "$env:TEMP\copilot-hooks-lab" -Force
+   Set-Location "$env:TEMP\copilot-hooks-lab"
+   git init
+   ```
+
+2. Bootstrap vanilla hooks into it from the `agent-forge-visualizer` repo.
+
+   ```powershell
+   # Run this from inside the agent-forge-visualizer repo
+   npx tsx scripts/bootstrap-existing-repo.ts "$env:TEMP\copilot-hooks-lab" --vanilla --create-hooks
+   ```
+
+   This creates `.github/hooks/visualizer/*.sh` and `.github/hooks/visualizer/*.ps1` scripts
+   and a `visualizer-hooks.json` manifest that points to them. No manual copying needed.
+
+   > **Why `visualizer/`?** The bootstrap isolates all generated files into a dedicated
+   > subdirectory so they never collide with your own hooks and can be cleanly removed later
+   > (see [ADR-004](../../adr/004-visualizer-hooks-subdirectory.md)).
+
+3. Confirm the scripts were created.
+
+   ```powershell
+   Get-ChildItem "$env:TEMP\copilot-hooks-lab\.github\hooks\visualizer"
+   ```
+
+4. Run a short Copilot CLI session from inside the lab repo that triggers at least one tool call.
+
+5. Open `.github/hooks/logs/events.jsonl` and inspect 3-5 lines.
+6. Note which fields are present, then compare with the "What's missing"
+   list below.
+
+   Quick inspect command:
+
+   ```powershell
+   Get-Content "$env:TEMP\copilot-hooks-lab\.github\hooks\logs\events.jsonl" -Tail 10 |
+     ForEach-Object { $_ | ConvertFrom-Json } | Format-List
+   ```
+
+   You should see one JSON object per line. A `sessionStart` entry looks like this:
+
+   ```json
+   {
+     "event": "sessionStart",
+     "timestamp": "1776370981977",
+     "source": "new",
+     "cwd": "C:\\Users\\you\\copilot-hooks-lab"
+   }
+   ```
+
+   Notice what's there — and what's not. There's no `sessionId`, no agent identity,
+   no way to correlate this event with anything else in the log. That's exactly the
+   gap the visualiser fills.
+
+---
 
 ### The 8 hook types and their payloads
 
@@ -36,14 +114,58 @@ Copilot CLI supports exactly 8 hook types. Here's what each sends on stdin:
 
 | Hook | Key Fields | Notes |
 |------|-----------|-------|
-| `sessionStart` | `timestamp`, `cwd`, `source`, `initialPrompt` | `source` is `"new"`, `"resume"`, or `"startup"` |
+| `sessionStart` | `timestamp`, `cwd`, `source` | `source` is `"new"`, `"resume"`, or `"startup"`. `initialPrompt` may appear on resume sessions |
 | `sessionEnd` | `timestamp`, `cwd`, `reason` | `reason` is `"complete"`, `"error"`, `"abort"`, `"timeout"`, or `"user_exit"` |
 | `userPromptSubmitted` | `timestamp`, `cwd`, `prompt` | Full prompt text — may contain sensitive data |
 | `preToolUse` | `timestamp`, `cwd`, `toolName`, `toolArgs` | `toolArgs` is a JSON **string**, not an object |
-| `postToolUse` | `timestamp`, `cwd`, `toolName`, `toolArgs`, `toolResult` | `toolResult.resultType` is `"success"`, `"failure"`, or `"denied"` |
-| `agentStop` | `timestamp`, `cwd` | Undocumented — may include additional fields |
-| `subagentStop` | `timestamp`, `cwd` | Undocumented — may include additional fields |
+| `postToolUse` | `timestamp`, `cwd`, `toolName`, `resultType` | `resultType` is `"success"`, `"failure"`, or `"denied"` — at the top level, not nested |
+| `agentStop` | `timestamp`, `cwd`, `sessionId`, `transcriptPath`, `stopReason` | `stopReason` is `"end_turn"` or similar; `transcriptPath` points to the session JSONL |
+| `subagentStop` | `timestamp`, `cwd` | May include additional fields similar to `agentStop` |
 | `errorOccurred` | `timestamp`, `cwd`, `error` | `error` has `message`, `name`, `stack` |
+
+Here are real examples from an actual session:
+
+**`preToolUse`** — `toolArgs` is always a JSON string you need to parse:
+```json
+{
+  "event": "preToolUse",
+  "timestamp": "1776370991449",
+  "toolName": "bash",
+  "toolArgs": "{\"command\": \"ls -la\", \"description\": \"List root directory\"}",
+  "cwd": "C:\\Users\\you\\copilot-hooks-lab"
+}
+```
+
+**`postToolUse`** — `resultType` is top-level, and `toolArgs` is not repeated:
+```json
+{
+  "event": "postToolUse",
+  "timestamp": "1776370992124",
+  "toolName": "bash",
+  "resultType": "success",
+  "cwd": "C:\\Users\\you\\copilot-hooks-lab"
+}
+```
+
+**`agentStop`** — the most information-rich vanilla event, including `sessionId`:
+```json
+{
+  "event": "agentStop",
+  "timestamp": "1776371020579",
+  "cwd": "C:\\Users\\you\\copilot-hooks-lab",
+  "rawPayload": {
+    "timestamp": 1776371020579,
+    "cwd": "C:\\Users\\you\\copilot-hooks-lab",
+    "sessionId": "b24e89d8-78ab-4fa4-9565-339d225182c6",
+    "transcriptPath": "C:\\Users\\you\\.copilot\\session-state\\b24e89d8...\\events.jsonl",
+    "stopReason": "end_turn"
+  }
+}
+```
+
+> **Note:** `sessionId` only appears in `agentStop` — not in `preToolUse`, `postToolUse`, or any other event.
+> This is one of the core gaps the visualiser fills: it extracts the `sessionId` from `agentStop` and
+> backfills it onto every envelope event so you can correlate a full session.
 
 ### What's missing
 
@@ -58,36 +180,11 @@ much about *who* or *why*. You won't find:
 
 These gaps are what the visualizer fills. Let's see how.
 
-### Try it yourself
+### Optional visualizer checkpoint
 
-The complete set of vanilla scripts is in
-[`docs/examples/vanilla-hooks/`](../examples/vanilla-hooks/). Copy them into
-a repo, run Copilot CLI, and inspect `.github/hooks/logs/events.jsonl` to see
-the raw payloads.
-
-1. Create a throwaway test repo.
-
-   ```powershell
-   mkdir "$env:TEMP/copilot-hooks-lab" -Force
-   cd "$env:TEMP/copilot-hooks-lab"
-   git init
-   mkdir ".github/hooks/logs" -Force
-   ```
-
-2. Copy the scripts from `docs/examples/vanilla-hooks/` into
-   `.github/hooks/` (or wire them using your preferred hook setup).
-3. Run a short Copilot CLI session that triggers at least one tool call.
-4. Open `.github/hooks/logs/events.jsonl` and inspect 3-5 lines.
-5. Note which fields are present, then compare with the "What's missing"
-   list above.
-
-Quick inspect command:
-
-```powershell
-Get-Content .github/hooks/logs/events.jsonl -Tail 5 |
-  ForEach-Object { (($_ | ConvertFrom-Json).PSObject.Properties.Name) -join ", " }
-```
-
----
+Want to see this stage in the UI? Run the optional checkpoint from
+[From Vanilla to Visualizer (PowerShell)](../from-vanilla-to-visualizer-ps1.md). At this point,
+most output is still vanilla-only in `.github/hooks/logs/events.jsonl`, so the
+web UI may show little or no activity yet.
 
 Up: [From Vanilla to Visualizer (PowerShell)](../from-vanilla-to-visualizer-ps1.md) | Next: [Part 2](part-2.md)
