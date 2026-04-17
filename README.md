@@ -47,6 +47,8 @@ The project is complete for the planned MVP scope:
 - Existing-repo bootstrap with automatic hook wiring for common lifecycle scripts
 - Enriched tool event payloads (when provided by host hooks): tool args, agent context, and optional skill metadata
 - Synthesized subagent lifecycle from task dispatch metadata (`toolArgs.agent_type`): start on task completion, stop on `agentStop`
+- CSV session export — one-click download of all session events as a CSV file with RFC 4180 escaping
+- Live feed pause/resume — freeze the display for inspection without losing incoming events; resume flushes buffered state
 
 ## Getting Started
 
@@ -250,3 +252,4 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - ADR-007: `docs/adr/007-readme-quickstart-and-doc-depth-split.md` — README/runbook vs deep-doc split
 - ADR-008: `docs/adr/008-tracing-ux-and-doc-consolidation.md` — umbrella decision for tracing + UX + docs rollout
 - ADR-009: `docs/adr/009-tutorial-alignment-and-pretooluse-examples.md` — tutorial code snippet accuracy and preToolUse standardisation
+- ADR-010: `docs/adr/010-csv-export-and-live-feed-pause.md` — CSV session export and live feed pause/resume

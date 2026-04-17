@@ -18,6 +18,7 @@
 | 1.1 | 2026-04-14 | GitHub Copilot | Post-MVP alignment: updated TypeScript version to match installed 5.x, all five MVP features marked complete |
 | 1.2 | 2026-04-17 | GitHub Copilot | Post-MVP direction update: tracing v2, pairing diagnostics, integration tooling, and quickstart/deep-doc split |
 | 1.3 | 2026-04-17 | GitHub Copilot | Tutorial alignment: aligned Bash and PS1 tutorial snippets with actual vanilla examples and bootstrap output, standardised on preToolUse, brought PS1 tutorial parity with Bash track (ADR-009) |
+| 1.4 | 2026-04-17 | GitHub Copilot | CSV session export and live feed pause/resume: client-side CSV download, live pause toggle with buffered updates (ADR-010) |
 
 ---
 
@@ -262,6 +263,7 @@ agent-forge-visualizer/
 | UI diagnostics and idle-aware polish | Implemented | [docs/adr/005-idle-aware-gantt-and-ui-polish.md](adr/005-idle-aware-gantt-and-ui-polish.md) |
 | Quickstart and documentation depth split | Implemented | [docs/adr/007-readme-quickstart-and-doc-depth-split.md](adr/007-readme-quickstart-and-doc-depth-split.md) |
 | Tutorial alignment and preToolUse standardisation | Implemented | [docs/adr/009-tutorial-alignment-and-pretooluse-examples.md](adr/009-tutorial-alignment-and-pretooluse-examples.md) |
+| CSV session export and live feed pause/resume | Implemented | [docs/adr/010-csv-export-and-live-feed-pause.md](adr/010-csv-export-and-live-feed-pause.md) |
 
 ### Feature Dependency Graph
 
