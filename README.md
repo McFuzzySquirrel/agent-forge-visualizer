@@ -1,6 +1,6 @@
 # Copilot Activity Visualiser
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/McFuzzySquirrel/agent-forge-visualizer/ci.yml?style=flat-square)](https://github.com/McFuzzySquirrel/agent-forge-visualizer/actions)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/McFuzzySquirrel/hooked-on-hooks/ci.yml?style=flat-square)](https://github.com/McFuzzySquirrel/hooked-on-hooks/actions)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D24-3c873a?style=flat-square)](https://nodejs.org)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
@@ -47,6 +47,8 @@ The project is complete for the planned MVP scope:
 - Existing-repo bootstrap with automatic hook wiring for common lifecycle scripts
 - Enriched tool event payloads (when provided by host hooks): tool args, agent context, and optional skill metadata
 - Synthesized subagent lifecycle from task dispatch metadata (`toolArgs.agent_type`): start on task completion, stop on `agentStop`
+- CSV session export — one-click download of all session events as a CSV file with RFC 4180 escaping
+- Live feed pause/resume — freeze the display for inspection without losing incoming events; resume flushes buffered state
 
 ## Getting Started
 
@@ -244,8 +246,10 @@ npm run replay:jsonl -- /path/to/events.jsonl
 - Product vision: `docs/product-vision.md`
 - Progress tracker: `docs/PROGRESS.md`
 - UI showcase: `docs/tutorials/ui-feature-showcase.md`
-- Integration notes: `docs/integrations/agent-forge-ejs-overlay.md`
+- Integration notes: `docs/integrations/hooked-on-hooks-ejs-overlay.md`
 - Architecture decisions: `docs/adr/` — ADRs covering packaging, metadata, manifests, hook isolation, and UI polish
 - ADR-006: `docs/adr/006-task-posttooluse-subagent-synthesis.md` — synthesis timing and lane lifecycle rationale
 - ADR-007: `docs/adr/007-readme-quickstart-and-doc-depth-split.md` — README/runbook vs deep-doc split
 - ADR-008: `docs/adr/008-tracing-ux-and-doc-consolidation.md` — umbrella decision for tracing + UX + docs rollout
+- ADR-009: `docs/adr/009-tutorial-alignment-and-pretooluse-examples.md` — tutorial code snippet accuracy and preToolUse standardisation
+- ADR-010: `docs/adr/010-csv-export-and-live-feed-pause.md` — CSV session export and live feed pause/resume

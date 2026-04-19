@@ -35,6 +35,37 @@ try {
 }
 ```
 
+### Optional correlation IDs (Tracing v2)
+
+The emitter accepts optional correlation fields in `EmitOptions` that are
+stamped into the event envelope before writing:
+
+```typescript
+import { emitEvent } from "@visualizer/hook-emitter";
+
+await emitEvent("preToolUse", payload, sessionId, {
+  turnId:       process.env.COPILOT_TURN_ID,
+  traceId:      process.env.COPILOT_TRACE_ID,
+  spanId:       process.env.COPILOT_SPAN_ID,
+  parentSpanId: process.env.COPILOT_PARENT_SPAN_ID,
+});
+```
+
+All fields are optional. If your hook environment doesn't supply them, the
+ingest service still pairs `preToolUse` → `postToolUse` events using a
+FIFO heuristic fallback. Supplying a `toolCallId` in the payload gives the
+precisest pairing with no heuristic needed.
+
+The live pairing breakdown is visible in the web UI's **Tool Pairing** bar
+(polling `GET /diagnostics/pairing`) so you can see how much of your session
+is exact-matched vs. heuristic-matched at a glance.
+
+![Tool Pairing tooltip showing exact `toolCallId` correlation](../assets/tutorial-screenshots/ui-features/ui-pairing-tooltip.png)
+
+In the screenshot above, the hover tooltip explains why `by ID` is the
+highest-confidence match class: both tool lifecycle events carried the same
+`toolCallId`, so ingest did not need to fall back to `spanId` or FIFO pairing.
+
 If the ingest service is down, events pile up in the JSONL file. When it comes
 back, you can replay them:
 
@@ -42,15 +73,8 @@ back, you can replay them:
 npm run replay:jsonl -- /path/to/events.jsonl
 ```
 
-The live pairing breakdown is visible in the web UI's **Tool Pairing** bar, so
-you can see how much of your session is exact-matched versus heuristic-matched
-at a glance.
-
-![Tool Pairing tooltip showing exact `toolCallId` correlation](../assets/tutorial-screenshots/ui-features/ui-pairing-tooltip.png)
-
-In the screenshot above, the hover tooltip explains why `by ID` is the
-highest-confidence match class: both tool lifecycle events carried the same
-`toolCallId`, so ingest did not need to fall back to `spanId` or FIFO pairing.
+You do **not** need the visualizer app running to validate this part. The core
+goal is proving local JSONL persistence even when HTTP delivery fails.
 
 ### Redaction
 
@@ -67,10 +91,10 @@ sensitive data, never opt *out*.
 
 ```diff
  # Vanilla: one line, direct to file
--Add-Content -Path .github/hooks/logs/events.jsonl -Value $inputJson
+-Add-Content -Path .github/hooks/logs/events.jsonl -Value $logEntry
 +
 +# Enhanced: validate -> redact -> JSONL + optional HTTP
-+.visualizer\emit-event.ps1 -EventType preToolUse -Payload $payloadJson -SessionId $SessionId
++& .visualizer\emit-event.ps1 -EventType preToolUse -Payload $payloadJson -SessionId $SessionId
 ```
 
 In PowerShell hooks, use `try/catch` around emits (or tolerate non-fatal
@@ -78,32 +102,61 @@ emit failures) so hook telemetry issues don't crash the host process.
 
 ### Try it yourself
 
-1. Stop the ingest service (or point to a non-listening endpoint).
-2. Run a session that emits several events.
-3. Confirm events still append to `.visualizer/logs/events.jsonl`.
-4. Restart the ingest path and run `npm run replay:jsonl -- /path/to/events.jsonl`.
-5. Verify replay restores events downstream.
+Part 1 bootstrapped the lab in vanilla mode, and Parts 2-4 continued from that setup.
+In current builds, vanilla bootstrap
+already creates `.visualizer/emit-event.ps1`. Verify first:
+
+```powershell
+Test-Path "$env:TEMP\copilot-hooks-lab\.visualizer\emit-event.ps1"
+```
+
+If the file is missing in your environment, run:
+
+```powershell
+npx tsx scripts/bootstrap-existing-repo.ts "$env:TEMP\copilot-hooks-lab" --create-hooks
+```
+
+Then run this sequence:
+
+1. Point HTTP delivery to a non-listening endpoint.
+2. Emit an event while HTTP is effectively down.
+3. Confirm the event still appends to `.visualizer/logs/events.jsonl`.
+4. Optional: if you later run ingest, replay the saved JSONL file.
+5. Optional: verify replay restores events downstream.
 
 Reliable way to simulate HTTP down while preserving JSONL writes:
 
 ```powershell
 $SessionId = "offline-" + [int](Get-Date -UFormat %s)
+Set-Location "$env:TEMP\copilot-hooks-lab"
+
 $env:VISUALIZER_HTTP_ENDPOINT = "http://127.0.0.1:9999/events"
-.visualizer\emit-event.ps1 -EventType sessionStart -Payload '{}' -SessionId $SessionId
+& .visualizer\emit-event.ps1 -EventType sessionStart -Payload '{}' -SessionId $SessionId
 Remove-Item Env:VISUALIZER_HTTP_ENDPOINT
 ```
 
 Verify the event was still persisted locally:
 
 ```powershell
-Get-Content .visualizer/logs/events.jsonl -Tail 30 |
+Get-Content "$env:TEMP\copilot-hooks-lab\.visualizer\logs\events.jsonl" -Tail 30 |
   ForEach-Object { $_ | ConvertFrom-Json } |
   Where-Object { $_.sessionId -eq $SessionId } |
   Select-Object -ExpandProperty eventType
 ```
 
-If you run the web UI alongside this step, the filter controls make it easy to
-isolate just the replayed event classes or one actor/tool at a time.
+Replay once ingest is back:
+
+```powershell
+npm run replay:jsonl -- "$env:TEMP\copilot-hooks-lab\.visualizer\logs\events.jsonl"
+```
+
+If ingest is not running yet, you can stop after the JSONL verification step.
+
+### Optional visualizer checkpoint
+
+Run the optional checkpoint from [From Vanilla to Visualizer (PowerShell)](../from-vanilla-to-visualizer-ps1.md).
+This part is still valid without the app running, but if ingest is up you can
+visually confirm replayed events reappear downstream.
 
 ![Filters panel for isolating event types and actors during replay](../assets/tutorial-screenshots/ui-features/ui-filter-controls.png)
 

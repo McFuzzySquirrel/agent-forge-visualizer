@@ -21,6 +21,7 @@ import { EventInspector } from "./components/EventInspector.js";
 import { FilterControls } from "./components/FilterControls.js";
 import { ReplayControls } from "./components/ReplayControls.js";
 import { PairingDiagnosticsPanel } from "./components/PairingDiagnosticsPanel.js";
+import { exportSessionToCsv } from "./csvExport.js";
 import type { FilterConfig, InspectorEntry, ReplaySpeed } from "./types.js";
 
 /** Pixel threshold below which the event list is considered "scrolled to bottom". */
@@ -77,17 +78,26 @@ export function App() {
   const eventListRef = useRef<HTMLUListElement>(null);
   const userScrolledRef = useRef(false);
 
+  // --- Live feed pause/resume state ---
+  const [livePaused, setLivePaused] = useState(false);
+  const pausedStateRef = useRef<SessionState | null>(null);
+  const pausedEventsRef = useRef<EventEnvelope[] | null>(null);
+
   // --- SSE connection for real-time state updates (LIVE-FR-03) ---
   useEffect(() => {
     const es = new EventSource(`${INGEST_BASE}/state/stream`);
     es.onopen = () => setConnected(true);
     es.onmessage = (e) => {
       const state = JSON.parse(e.data as string) as SessionState;
-      setSessionState(state);
+      if (livePaused) {
+        pausedStateRef.current = state;
+      } else {
+        setSessionState(state);
+      }
     };
     es.onerror = () => setConnected(false);
     return () => es.close();
-  }, []);
+  }, [livePaused]);
 
   // --- Periodic event list refresh for the inspector timeline ---
   useEffect(() => {
@@ -95,7 +105,11 @@ export function App() {
       try {
         const res = await fetch(`${INGEST_BASE}/events`);
         const body = (await res.json()) as { events: EventEnvelope[] };
-        setAllEvents(body.events);
+        if (livePaused) {
+          pausedEventsRef.current = body.events;
+        } else {
+          setAllEvents(body.events);
+        }
       } catch {
         // Ingest service may not be reachable — silently skip
       }
@@ -103,7 +117,7 @@ export function App() {
     void fetchEvents();
     const id = setInterval(() => void fetchEvents(), 2000);
     return () => clearInterval(id);
-  }, []);
+  }, [livePaused]);
 
   const replayFrames = useMemo(() => buildReplayFrames(allEvents), [allEvents]);
   const replayEvents = replayFrames.map((frame) => frame.event);
@@ -226,6 +240,27 @@ export function App() {
     }
   }, [firstFailureIndex]);
 
+  const handleTogglePause = useCallback(() => {
+    setLivePaused((current) => {
+      if (current) {
+        // Resuming — flush any buffered state/events that arrived while paused
+        if (pausedStateRef.current) {
+          setSessionState(pausedStateRef.current);
+          pausedStateRef.current = null;
+        }
+        if (pausedEventsRef.current) {
+          setAllEvents(pausedEventsRef.current);
+          pausedEventsRef.current = null;
+        }
+      }
+      return !current;
+    });
+  }, []);
+
+  const handleExportCsv = useCallback(() => {
+    exportSessionToCsv(allEvents);
+  }, [allEvents]);
+
   const handleSelectGanttSegment = useCallback((segment: GanttSegment) => {
     const endTime = segment.endTime ?? Date.now();
     setSelectedPeriod((current) => {
@@ -279,6 +314,60 @@ export function App() {
               🔄 Replay Mode
             </span>
           )}
+          {livePaused && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                color: "#f59e0b",
+                background: "rgba(245, 158, 11, 0.12)",
+                border: "1px solid rgba(245, 158, 11, 0.3)",
+                borderRadius: 6,
+                padding: "0.2rem 0.6rem",
+              }}
+            >
+              ⏸ Paused
+            </span>
+          )}
+          <button
+            onClick={handleTogglePause}
+            disabled={replayMode}
+            aria-label={livePaused ? "Resume live feed" : "Pause live feed"}
+            title={livePaused ? "Resume live feed (catch up on missed events)" : "Pause live feed"}
+            style={{
+              background: livePaused ? "#22c55e" : "#334155",
+              color: "#f1f5f9",
+              border: `1px solid ${livePaused ? "#22c55e" : "#475569"}`,
+              borderRadius: 6,
+              padding: "0.3rem 0.75rem",
+              fontSize: "0.82rem",
+              cursor: replayMode ? "not-allowed" : "pointer",
+              opacity: replayMode ? 0.5 : 1,
+            }}
+          >
+            {livePaused ? "▶ Resume" : "⏸ Pause"}
+          </button>
+          <button
+            onClick={handleExportCsv}
+            disabled={allEvents.length === 0}
+            aria-label="Export session data to CSV"
+            title="Export all session events to a CSV file"
+            style={{
+              background: "#334155",
+              color: "#f1f5f9",
+              border: "1px solid #475569",
+              borderRadius: 6,
+              padding: "0.3rem 0.75rem",
+              fontSize: "0.82rem",
+              cursor: allEvents.length === 0 ? "not-allowed" : "pointer",
+              opacity: allEvents.length === 0 ? 0.5 : 1,
+            }}
+          >
+            📥 Export CSV
+          </button>
           <span
             aria-live="polite"
             role="status"

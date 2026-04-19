@@ -14,6 +14,7 @@ This index helps you choose a tutorial track and jump directly to any part.
 - [ADR-006: Task postToolUse subagent synthesis](../adr/006-task-posttooluse-subagent-synthesis.md)
 - [ADR-007: README quickstart and documentation depth split](../adr/007-readme-quickstart-and-doc-depth-split.md)
 - [ADR-008: Tracing, UX, and documentation consolidation](../adr/008-tracing-ux-and-doc-consolidation.md)
+- [ADR-009: Tutorial alignment and preToolUse examples standardisation](../adr/009-tutorial-alignment-and-pretooluse-examples.md)
 
 ## Bash/Linux Parts
 
